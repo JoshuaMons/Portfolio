@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { ParsedTable, TableAnalytics, FilterRule } from '@/types';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { applyFilters } from '@/lib/filters';
+import { analyseTable } from '@/lib/analytics';
 import MetricCards from './MetricCards';
 import TimeSeriesChart from './TimeSeriesChart';
 import CategoryChart from './CategoryChart';
@@ -19,8 +20,6 @@ interface Props {
 
 export default function TableTab({ table, analytics }: Props) {
   const { t } = useLanguage();
-  // pending = what's in the filter panel editor
-  // applied = what's actually filtering the table (only updates on Apply click)
   const [appliedFilters, setAppliedFilters] = useState<FilterRule[]>([]);
 
   const filteredData = useMemo(
@@ -28,7 +27,17 @@ export default function TableTab({ table, analytics }: Props) {
     [table.data, appliedFilters]
   );
 
-  const { metrics, charts } = analytics;
+  // Re-run analytics on filtered data when filters are active so charts/metrics adapt
+  const filteredTable = useMemo<ParsedTable>(
+    () => ({ ...table, data: filteredData, rowCount: filteredData.length }),
+    [table, filteredData]
+  );
+  const liveAnalytics = useMemo(
+    () => appliedFilters.length > 0 ? analyseTable(filteredTable) : analytics,
+    [filteredTable, analytics, appliedFilters.length]
+  );
+
+  const { metrics, charts } = liveAnalytics;
   // Route by key presence: xKey → vertical axis chart (TimeSeriesChart); nameKey → categorical (CategoryChart)
   const timeSeries = charts.find((c) => c.type === 'area' || c.type === 'line');
   const gridCharts = charts.filter((c) => c.type !== 'area' && c.type !== 'line');

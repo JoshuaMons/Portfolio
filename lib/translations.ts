@@ -132,6 +132,35 @@ const translations = {
     statMean: 'Mean',
     statMedian: 'Median',
     statNulls: 'Nulls',
+
+    // Column detail modal
+    colModalType: 'Inferred Type',
+    colModalSqlType: 'SQL Type',
+    colModalNullable: 'Nullable',
+    colModalUniqueValues: 'Unique Values',
+    colModalTotalRows: 'Total Rows',
+    colModalNullValues: 'Null Values',
+    colModalDistribution: 'Value Distribution',
+    colModalTopValues: 'Top Values',
+    colModalCount: 'Count',
+    colModalShare: 'Share',
+    colModalOther: '(other)',
+    colModalDescription: 'About this column',
+    colModalNoData: 'Not enough data to show a distribution.',
+
+    // Auto-generated column descriptions
+    descDate: 'Stores timestamps or dates. Use this column for time-series analysis and trend detection over time.',
+    descNumber: 'Contains numeric values. Suitable for statistical analysis, averages, and distribution charts.',
+    descCategory: 'A categorical column with a fixed set of recurring values. Ideal for grouping and filtering data.',
+    descBoolean: 'A binary flag (yes/no or true/false). Indicates whether a particular condition applies to each record.',
+    descText: 'Free-form text with high variability. Best used for searching or keyword-based analysis.',
+    descStatus: 'Tracks the current state or outcome of each record, such as resolved, open, or closed.',
+    descReason: 'Captures the reason, cause, or category that triggered this record.',
+    descAgent: 'Identifies the agent, employee, or operator responsible for handling this record.',
+    descChannel: 'Indicates the communication channel or source through which this record originated.',
+    descDuration: 'Measures the time spent on each record, such as handling or waiting time.',
+    descCustomer: 'References the customer, client, or contact associated with this record.',
+    descHandover: 'Records whether or when a handover or escalation occurred.',
   },
 
   nl: {
@@ -265,6 +294,35 @@ const translations = {
     statMean: 'Gemiddelde',
     statMedian: 'Mediaan',
     statNulls: 'Leeg',
+
+    // Column detail modal
+    colModalType: 'Afgeleid Type',
+    colModalSqlType: 'SQL-type',
+    colModalNullable: 'Nullable',
+    colModalUniqueValues: 'Unieke Waarden',
+    colModalTotalRows: 'Totaal Rijen',
+    colModalNullValues: 'Lege Waarden',
+    colModalDistribution: 'Waardenverdeling',
+    colModalTopValues: 'Topwaarden',
+    colModalCount: 'Aantal',
+    colModalShare: 'Aandeel',
+    colModalOther: '(overig)',
+    colModalDescription: 'Over deze kolom',
+    colModalNoData: 'Onvoldoende gegevens voor een verdeling.',
+
+    // Auto-generated column descriptions
+    descDate: 'Bevat tijdstempels of datums. Gebruik deze kolom voor tijdreeksanalyse en het detecteren van trends.',
+    descNumber: 'Bevat numerieke waarden. Geschikt voor statistische analyse, gemiddelden en verdelingsgrafieken.',
+    descCategory: 'Een categoriekolom met een vaste set terugkerende waarden. Ideaal voor groeperen en filteren.',
+    descBoolean: 'Een binaire vlag (ja/nee of waar/onwaar). Geeft aan of een bepaalde voorwaarde van toepassing is.',
+    descText: 'Vrije tekst met hoge variabiliteit. Het beste geschikt voor zoeken of trefwoordanalyse.',
+    descStatus: 'Registreert de huidige staat of uitkomst van elk record, zoals opgelost, open of gesloten.',
+    descReason: 'Legt de reden, oorzaak of categorie vast die dit record heeft getriggerd.',
+    descAgent: 'Identificeert de medewerker, agent of operator die verantwoordelijk is voor dit record.',
+    descChannel: 'Geeft het communicatiekanaal of de bron aan van waaruit dit record is ontstaan.',
+    descDuration: 'Meet de bestede tijd per record, zoals afhandel- of wachttijd.',
+    descCustomer: 'Verwijst naar de klant, opdrachtgever of contactpersoon bij dit record.',
+    descHandover: 'Registreert of en wanneer een overdracht of escalatie heeft plaatsgevonden.',
   },
 };
 

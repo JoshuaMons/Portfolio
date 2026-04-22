@@ -254,7 +254,7 @@ function buildChartsForTable(table: ParsedTable, cb: ChatbotColumns, isChatbot: 
 
 // ─── Per-table analysis ───────────────────────────────────────────────────────
 
-function analyseTable(table: ParsedTable): TableAnalytics {
+export function analyseTable(table: ParsedTable): TableAnalytics {
   const cb = detectChatbotColumns(table);
   const isChatbot = chatbotScore(cb) >= 2;
   return {
