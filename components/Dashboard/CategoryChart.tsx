@@ -1,74 +1,209 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, Sector, Label,
 } from 'recharts';
 import { ChartConfig } from '@/types';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Hash, Percent, Info, X } from 'lucide-react';
+import { clsx } from 'clsx';
 
-const CHART_COLORS = ['#6366f1', '#8b5cf6', '#60a5fa', '#34d399', '#f59e0b', '#f87171', '#a78bfa', '#2dd4bf'];
+const COLORS = ['#6366f1', '#8b5cf6', '#60a5fa', '#34d399', '#f59e0b', '#f87171', '#a78bfa', '#2dd4bf'];
 
-interface Props {
-  config: ChartConfig;
+// Description lookup by chart id prefix
+const ID_DESCS: Record<string, [string, string]> = {
+  reason_:   ['Top reasons that triggered a handover. Click a bar to highlight it.', 'Topredenen voor een handover. Klik een balk om deze te markeren.'],
+  channel_:  ['Origin channels of incoming records. Hover over slices for details.', 'Herkomstkanalen van inkomende records. Hover over segmenten voor details.'],
+  agent_:    ['Agent workload distribution. High values may indicate over-assignment.', 'Werkverdeling per medewerker. Hoge waarden kunnen op overbezetting wijzen.'],
+  status_:   ['Current status breakdown of all records.', 'Huidige statusverdeling van alle records.'],
+  dur_dist_: ['How long each record takes to resolve. Longer durations may need process review.', 'Hoe lang elk record duurt om af te handelen. Lange duren kunnen procesverbetering vereisen.'],
+  missing_:  ['Columns with incomplete data (%). High percentages may reduce analysis quality.', 'Kolommen met ontbrekende gegevens (%). Hoge percentages kunnen de analysekwaliteit verminderen.'],
+  num_:      ['Value distribution for this numeric column, bucketed into ranges.', 'Waardenverdeling voor deze numerieke kolom, ingedeeld in bereiken.'],
+  cat_:      ['Distribution of values in this column. Click a bar to highlight it and dim the rest.', 'Verdeling van waarden in deze kolom. Klik een balk om deze te markeren.'],
+};
+
+function getDesc(id: string, lang: 'en' | 'nl'): string | undefined {
+  for (const [prefix, [en, nl]] of Object.entries(ID_DESCS)) {
+    if (id === prefix || id.startsWith(prefix)) return lang === 'nl' ? nl : en;
+  }
+  return undefined;
 }
 
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
+function InfoTooltip({ text }: { text: string }) {
   return (
-    <div className="bg-white border border-surface-200 rounded-xl shadow-lg p-3 text-sm">
-      {label && <p className="font-medium text-slate-700 mb-1">{label}</p>}
-      {payload.map((p: any, i: number) => (
-        <p key={i} className="font-semibold" style={{ color: p.payload?.fill ?? p.color }}>
-          {p.name ?? p.payload?.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
-        </p>
-      ))}
+    <span className="relative group inline-flex flex-shrink-0">
+      <Info className="w-3.5 h-3.5 text-slate-300 hover:text-slate-500 cursor-help transition-colors" />
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-xs rounded-xl px-3 py-2.5 opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl leading-relaxed transition-opacity">
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-800" />
+      </span>
+    </span>
+  );
+}
+
+function RichBarTooltip({ active, payload, total, showPct }: any) {
+  if (!active || !payload?.length) return null;
+  const entry = payload[0].payload;
+  const raw = entry._rawValue ?? payload[0].value;
+  const pct = total > 0 ? ((raw / total) * 100).toFixed(1) : '0';
+  return (
+    <div className="bg-white border border-surface-200 rounded-xl shadow-lg p-3 text-xs min-w-[150px]">
+      <p className="font-semibold text-slate-700 mb-2 max-w-[200px] truncate">{entry.name}</p>
+      <div className="space-y-1.5">
+        <div className="flex justify-between gap-5">
+          <span className="text-slate-400">Count</span>
+          <span className="font-bold text-slate-900 tabular-nums">{raw.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between gap-5">
+          <span className="text-slate-400">Share</span>
+          <span className="font-medium text-slate-700 tabular-nums">{pct}%</span>
+        </div>
+        <div className="flex justify-between gap-5 pt-1.5 border-t border-surface-100">
+          <span className="text-slate-400">Rank</span>
+          <span className="font-semibold text-primary-600">#{entry.rank}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
-const RADIAN = Math.PI / 180;
-function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
-  if (percent < 0.05) return null;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+function ActivePieShape(props: any) {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, percent, value } = props;
   return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
+    <g>
+      <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius + 8} startAngle={startAngle} endAngle={endAngle} fill={fill} />
+      <Sector cx={cx} cy={cy} innerRadius={outerRadius + 12} outerRadius={outerRadius + 16} startAngle={startAngle} endAngle={endAngle} fill={fill} fillOpacity={0.35} />
+      <text x={cx} y={cy - 9} textAnchor="middle" fill="#0f172a" fontSize={15} fontWeight={700}>
+        {value.toLocaleString()}
+      </text>
+      <text x={cx} y={cy + 10} textAnchor="middle" fill="#64748b" fontSize={11}>
+        {(percent * 100).toFixed(1)}%
+      </text>
+    </g>
   );
 }
 
-export default function CategoryChart({ config }: Props) {
+export default function CategoryChart({ config }: { config: ChartConfig }) {
   const { lang } = useLanguage();
-  const title = lang === 'nl' ? config.titleNl : config.titleEn;
-  const nameKey = config.nameKey ?? 'name';
+  const [showPct, setShowPct] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [activePieIdx, setActivePieIdx] = useState<number | undefined>(undefined);
+
+  const title  = lang === 'nl' ? config.titleNl : config.titleEn;
+  const desc   = getDesc(config.id, lang);
+  const nameKey  = config.nameKey  ?? 'name';
   const valueKey = config.valueKey ?? 'value';
 
+  const total = useMemo(
+    () => config.data.reduce((s, d) => s + (Number(d[valueKey]) || 0), 0),
+    [config.data, valueKey]
+  );
+
+  const enriched = useMemo(
+    () => config.data.map((d, i) => ({
+      ...d,
+      name:       String(d[nameKey]),
+      value:      showPct && total > 0
+                    ? Math.round((Number(d[valueKey]) / total) * 1000) / 10
+                    : Number(d[valueKey]),
+      _rawValue:  Number(d[valueKey]),
+      rank:       i + 1,
+    })),
+    [config.data, nameKey, valueKey, showPct, total]
+  );
+
+  const topName = String(config.data[0]?.[nameKey] ?? '—');
+
+  // ── PIE ──────────────────────────────────────────────────────────────────────
   if (config.type === 'pie') {
     return (
       <div className="card p-6">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">{title}</h3>
-        <ResponsiveContainer width="100%" height={260}>
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="text-sm font-semibold text-slate-700 truncate flex-1 min-w-0">{title}</h3>
+          {desc && <InfoTooltip text={desc} />}
+        </div>
+        <p className="text-xs text-slate-400 mb-3">
+          Total: <span className="font-medium text-slate-600">{total.toLocaleString()}</span>
+          &ensp;·&ensp;
+          {config.data.length} categories
+          &ensp;·&ensp;
+          <span className="text-slate-400">hover to inspect</span>
+        </p>
+
+        <ResponsiveContainer width="100%" height={290}>
           <PieChart>
             <Pie
-              data={config.data}
-              dataKey={valueKey}
-              nameKey={nameKey}
+              data={enriched}
+              dataKey="_rawValue"
+              nameKey="name"
               cx="50%"
-              cy="50%"
-              outerRadius={90}
-              labelLine={false}
-              label={renderCustomLabel}
+              cy="46%"
+              innerRadius={58}
+              outerRadius={95}
+              paddingAngle={2}
+              activeIndex={activePieIdx}
+              activeShape={ActivePieShape as any}
+              onMouseEnter={(_, idx) => setActivePieIdx(idx)}
+              onMouseLeave={() => setActivePieIdx(undefined)}
             >
-              {config.data.map((_, i) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              <Label
+                content={({ viewBox }: any) => {
+                  if (activePieIdx !== undefined) return <g />;
+                  const { cx, cy } = viewBox;
+                  return (
+                    <g>
+                      <text x={cx} y={cy - 9} textAnchor="middle" fill="#0f172a" fontSize={18} fontWeight={700}>
+                        {total.toLocaleString()}
+                      </text>
+                      <text x={cx} y={cy + 10} textAnchor="middle" fill="#94a3b8" fontSize={10}>
+                        total
+                      </text>
+                    </g>
+                  );
+                }}
+              />
+              {enriched.map((_, i) => (
+                <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
+
+            <Tooltip
+              content={({ active, payload }: any) => {
+                if (!active || !payload?.length) return null;
+                const d = payload[0].payload;
+                const pct = total > 0 ? ((d._rawValue / total) * 100).toFixed(1) : '0';
+                return (
+                  <div className="bg-white border border-surface-200 rounded-xl shadow-lg p-3 text-xs min-w-[150px]">
+                    <p className="font-semibold text-slate-700 mb-2 max-w-[200px] truncate">{d.name}</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between gap-5">
+                        <span className="text-slate-400">Count</span>
+                        <span className="font-bold text-slate-900 tabular-nums">{d._rawValue.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between gap-5">
+                        <span className="text-slate-400">Share</span>
+                        <span className="font-semibold text-primary-600 tabular-nums">{pct}%</span>
+                      </div>
+                      <div className="flex justify-between gap-5 pt-1.5 border-t border-surface-100">
+                        <span className="text-slate-400">Rank</span>
+                        <span className="font-medium text-slate-700">#{d.rank}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }}
+            />
             <Legend
-              formatter={(v) => <span className="text-xs text-slate-600">{v}</span>}
+              formatter={(value: any, entry: any) => (
+                <span className="text-xs text-slate-600">
+                  {value}
+                  <span className="text-slate-400 ml-1 tabular-nums">
+                    ({entry.payload?._rawValue?.toLocaleString?.()})
+                  </span>
+                </span>
+              )}
               iconType="circle"
               iconSize={8}
             />
@@ -78,25 +213,102 @@ export default function CategoryChart({ config }: Props) {
     );
   }
 
+  // ── HORIZONTAL BAR ───────────────────────────────────────────────────────────
+  const barH = Math.max(180, enriched.length * 34 + 16);
+
   return (
     <div className="card p-6">
-      <h3 className="text-sm font-semibold text-slate-700 mb-4">{title}</h3>
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={config.data} layout="vertical" margin={{ left: 8, right: 16 }}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-slate-700 truncate">{title}</h3>
+          {desc && <InfoTooltip text={desc} />}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {selected && (
+            <button
+              onClick={() => setSelected(null)}
+              className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors"
+            >
+              <X className="w-3 h-3" /> clear
+            </button>
+          )}
+          {/* Count / % toggle */}
+          <div className="flex rounded-lg overflow-hidden border border-surface-200">
+            <button
+              onClick={() => setShowPct(false)}
+              title="Show counts"
+              className={clsx(
+                'px-2 py-1.5 text-xs font-medium transition-colors',
+                !showPct ? 'bg-primary-600 text-white' : 'text-slate-500 hover:bg-surface-50'
+              )}
+            >
+              <Hash className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => setShowPct(true)}
+              title="Show percentages"
+              className={clsx(
+                'px-2 py-1.5 text-xs font-medium transition-colors',
+                showPct ? 'bg-primary-600 text-white' : 'text-slate-500 hover:bg-surface-50'
+              )}
+            >
+              <Percent className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Subtitle */}
+      <p className="text-xs text-slate-400 mb-4">
+        {selected
+          ? <span>Selected: <span className="font-medium text-slate-600">"{selected}"</span> — click again or clear to reset</span>
+          : <span>#1: <span className="font-medium text-slate-600">{topName}</span>&ensp;·&ensp;Total: <span className="font-medium text-slate-600">{total.toLocaleString()}</span></span>
+        }
+      </p>
+
+      <ResponsiveContainer width="100%" height={barH}>
+        <BarChart data={enriched} layout="vertical" margin={{ left: 8, right: 56 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-          <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+          <XAxis
+            type="number"
+            tick={{ fontSize: 11, fill: '#94a3b8' }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={showPct ? (v) => `${v}%` : undefined}
+          />
           <YAxis
             type="category"
-            dataKey={nameKey}
+            dataKey="name"
             tick={{ fontSize: 11, fill: '#64748b' }}
             tickLine={false}
             axisLine={false}
             width={110}
           />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey={valueKey} radius={[0, 4, 4, 0]}>
-            {config.data.map((entry, i) => (
-              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+          <Tooltip content={<RichBarTooltip total={total} showPct={showPct} />} />
+          <Bar
+            dataKey="value"
+            radius={[0, 4, 4, 0]}
+            cursor="pointer"
+            onClick={(d: any) => setSelected(selected === d.name ? null : d.name)}
+            label={{
+              position: 'right',
+              fontSize: 10,
+              fill: '#94a3b8',
+              formatter: (v: any) =>
+                showPct
+                  ? `${v}%`
+                  : Number(v) >= 1000
+                  ? `${(Number(v) / 1000).toFixed(1)}k`
+                  : String(v),
+            } as any}
+          >
+            {enriched.map((entry, i) => (
+              <Cell
+                key={i}
+                fill={COLORS[i % COLORS.length]}
+                fillOpacity={selected === null || selected === entry.name ? 1 : 0.18}
+              />
             ))}
           </Bar>
         </BarChart>
