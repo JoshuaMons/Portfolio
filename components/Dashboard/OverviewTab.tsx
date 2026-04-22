@@ -24,7 +24,8 @@ export default function OverviewTab({ database, analytics, onTableClick }: Props
   const { overview, tableAnalytics } = analytics;
 
   const timeSeries = overview.charts.find((c) => c.type === 'area' || c.type === 'line');
-  const catCharts = overview.charts.filter((c) => c.type !== 'area' && c.type !== 'line');
+  // Route remaining charts by key presence: xKey → TimeSeriesChart (vertical bar); nameKey → CategoryChart
+  const gridCharts = overview.charts.filter((c) => c.type !== 'area' && c.type !== 'line');
 
   return (
     <div className="space-y-6">
@@ -34,9 +35,13 @@ export default function OverviewTab({ database, analytics, onTableClick }: Props
       {/* Main charts */}
       {timeSeries && <TimeSeriesChart config={timeSeries} />}
 
-      {catCharts.length > 0 && (
+      {gridCharts.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {catCharts.map((c) => <CategoryChart key={c.id} config={c} />)}
+          {gridCharts.map((c) =>
+            c.xKey
+              ? <TimeSeriesChart key={c.id} config={c} />
+              : <CategoryChart key={c.id} config={c} />
+          )}
         </div>
       )}
 

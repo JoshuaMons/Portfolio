@@ -118,6 +118,20 @@ const translations = {
     typeCategory: 'Category',
     typeBoolean: 'Boolean',
     typeText: 'Text',
+
+    // Data table actions
+    searchTable: 'Search table…',
+    exportCSV: 'Export CSV',
+    prev: 'Prev',
+    next: 'Next',
+
+    // Column statistics
+    statsTitle: 'Column Statistics',
+    statMin: 'Min',
+    statMax: 'Max',
+    statMean: 'Mean',
+    statMedian: 'Median',
+    statNulls: 'Nulls',
   },
 
   nl: {
@@ -237,6 +251,20 @@ const translations = {
     typeCategory: 'Categorie',
     typeBoolean: 'Boolean',
     typeText: 'Tekst',
+
+    // Data table actions
+    searchTable: 'Zoek in tabel…',
+    exportCSV: 'CSV exporteren',
+    prev: 'Vorige',
+    next: 'Volgende',
+
+    // Column statistics
+    statsTitle: 'Kolomstatistieken',
+    statMin: 'Min',
+    statMax: 'Max',
+    statMean: 'Gemiddelde',
+    statMedian: 'Mediaan',
+    statNulls: 'Leeg',
   },
 };
 
