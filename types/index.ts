@@ -20,7 +20,7 @@ export interface ParsedTable {
 
 export interface DatabaseInfo {
   fileName: string;
-  fileType: 'sqlite' | 'csv';
+  fileType: 'sqlite' | 'csv' | 'sql';
   fileSize: number;
   tables: ParsedTable[];
   uploadedAt: string;

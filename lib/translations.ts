@@ -5,7 +5,7 @@ const translations = {
     // Landing
     welcomeTitle: 'Chatbot Dashboard',
     welcomeSubtitle: 'Welcome — upload a database to get started',
-    welcomeDescription: 'Analyse your chatbot handover data with interactive charts, tables, and insights. Supports SQLite (.db, .sqlite) and CSV (.csv) files.',
+    welcomeDescription: 'Analyse your chatbot handover data with interactive charts, tables, and insights. Supports SQLite (.db, .sqlite), SQL dumps (.sql) and CSV (.csv) — including large files.',
     dropzoneTitle: 'Drop your database file here',
     dropzoneOr: 'or click to browse',
     dropzoneFormats: 'Supports SQLite (.db, .sqlite) and CSV (.csv)',
@@ -81,7 +81,7 @@ const translations = {
     // Landing
     welcomeTitle: 'Chatbot Dashboard',
     welcomeSubtitle: 'Welkom — upload een database om te beginnen',
-    welcomeDescription: 'Analyseer uw chatbot handover data met interactieve grafieken, tabellen en inzichten. Ondersteunt SQLite (.db, .sqlite) en CSV (.csv) bestanden.',
+    welcomeDescription: 'Analyseer uw chatbot handover data met interactieve grafieken, tabellen en inzichten. Ondersteunt SQLite (.db, .sqlite), SQL-dumps (.sql) en CSV (.csv) — inclusief grote bestanden.',
     dropzoneTitle: 'Sleep uw databasebestand hierheen',
     dropzoneOr: 'of klik om te bladeren',
     dropzoneFormats: 'Ondersteunt SQLite (.db, .sqlite) en CSV (.csv)',

@@ -2,14 +2,27 @@
 
 import React, { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Database, FileSpreadsheet, Globe, LayoutDashboard, AlertCircle } from 'lucide-react';
+import { Upload, Database, FileSpreadsheet, FileCode2, Globe, LayoutDashboard, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useDatabase } from '@/contexts/DatabaseContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+const ACCEPTED_EXTS = ['.db', '.sqlite', '.sqlite3', '.sql', '.csv'];
+const ACCEPTED_MIMES = [
+  'application/x-sqlite3',
+  'application/vnd.sqlite3',
+  'application/sqlite3',
+  'application/octet-stream',
+  'application/sql',
+  'text/x-sql',
+  'text/plain',
+  'text/csv',
+  'application/csv',
+];
+
 export default function LandingPage() {
   const router = useRouter();
-  const { loadFile, isLoading, error } = useDatabase();
+  const { loadFile, isLoading, progress, progressMsg, error } = useDatabase();
   const { lang, setLang, t } = useLanguage();
   const [isDragging, setIsDragging] = useState(false);
 
@@ -39,6 +52,8 @@ export default function LandingPage() {
     [handleFile]
   );
 
+  const acceptString = [...ACCEPTED_EXTS, ...ACCEPTED_MIMES].join(',');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-surface-50 via-white to-primary-50 flex flex-col">
       {/* Top bar */}
@@ -50,7 +65,6 @@ export default function LandingPage() {
           <span className="font-semibold text-slate-800 text-sm">{t('welcomeTitle')}</span>
         </div>
 
-        {/* Lang switch */}
         <div className="flex items-center gap-1 bg-white border border-surface-200 rounded-lg p-1 shadow-sm">
           <Globe className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
           {(['en', 'nl'] as const).map((l) => (
@@ -92,7 +106,7 @@ export default function LandingPage() {
               isDragging
                 ? 'border-primary-500 bg-primary-50 scale-[1.01]'
                 : 'border-surface-300 bg-white hover:border-primary-400 hover:bg-primary-50/40',
-              isLoading && 'pointer-events-none opacity-75'
+              isLoading && 'pointer-events-none'
             )}
             onDrop={onDrop}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -100,32 +114,52 @@ export default function LandingPage() {
           >
             <input
               type="file"
-              accept=".db,.sqlite,.sqlite3,.csv"
+              accept={acceptString}
               className="sr-only"
               onChange={onInputChange}
               disabled={isLoading}
             />
 
             {isLoading ? (
-              <>
-                <div className="w-10 h-10 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-                <p className="text-primary-700 font-medium">{t('uploading')}</p>
-              </>
+              <div className="w-full flex flex-col items-center gap-4">
+                {/* Spinner + message */}
+                <div className="flex items-center gap-3">
+                  <svg className="animate-spin w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  <p className="text-primary-700 font-medium text-sm">
+                    {progressMsg || t('uploading')}
+                  </p>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full bg-primary-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full bg-primary-600 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${Math.max(4, progress)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-primary-500 font-medium">{progress}%</p>
+              </div>
             ) : (
               <>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
-                    <Upload className="w-6 h-6 text-primary-600" />
-                  </div>
+                <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-primary-600" />
                 </div>
                 <div className="text-center">
                   <p className="font-semibold text-slate-800 text-lg">{t('dropzoneTitle')}</p>
                   <p className="text-slate-500 text-sm mt-1">{t('dropzoneOr')}</p>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-400">
+                <div className="flex flex-wrap justify-center gap-3 text-xs text-slate-400">
                   <div className="flex items-center gap-1.5">
                     <Database className="w-3.5 h-3.5" />
-                    <span>.db .sqlite .sqlite3</span>
+                    <span>.db &nbsp;.sqlite &nbsp;.sqlite3</span>
+                  </div>
+                  <span>•</span>
+                  <div className="flex items-center gap-1.5">
+                    <FileCode2 className="w-3.5 h-3.5" />
+                    <span>.sql</span>
                   </div>
                   <span>•</span>
                   <div className="flex items-center gap-1.5">
@@ -141,7 +175,7 @@ export default function LandingPage() {
           {error && (
             <div className="mt-4 flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <p className="text-sm">{t('uploadError')}</p>
+              <p className="text-sm">{error}</p>
             </div>
           )}
 
