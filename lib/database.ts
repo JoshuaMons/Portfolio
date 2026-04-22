@@ -45,6 +45,23 @@ function buildColumn(name: string, sqlType: string, allValues: any[]): ParsedCol
   };
 }
 
+// ─── sql.js singleton ─────────────────────────────────────────────────────────
+
+let _SQL: any = null;
+
+async function getSQL(): Promise<any> {
+  if (_SQL) return _SQL;
+  const initSqlJs = (await import('sql.js')).default;
+  // Fetch the WASM binary manually so we can pass it as wasmBinary.
+  // This bypasses sql.js's own async/sync WASM fetching, which fails under
+  // Next.js because the dev server doesn't serve .wasm with the right headers.
+  const res = await fetch('/sql-wasm.wasm');
+  if (!res.ok) throw new Error(`Failed to fetch sql-wasm.wasm (${res.status})`);
+  const wasmBinary = await res.arrayBuffer();
+  _SQL = await initSqlJs({ wasmBinary });
+  return _SQL;
+}
+
 // ─── Shared sql.js DB → tables ────────────────────────────────────────────────
 
 const DISPLAY_LIMIT = 10_000;
@@ -101,8 +118,7 @@ async function extractTables(db: any, onProgress?: ProgressFn): Promise<ParsedTa
 
 export async function parseSQLite(buffer: ArrayBuffer, onProgress?: ProgressFn): Promise<ParsedTable[]> {
   onProgress?.(5, 'Loading database engine…');
-  const initSqlJs = (await import('sql.js')).default;
-  const SQL = await initSqlJs({ locateFile: (f: string) => `/${f}` });
+  const SQL = await getSQL();
 
   onProgress?.(20, 'Opening database…');
   const db = new SQL.Database(new Uint8Array(buffer));
@@ -117,8 +133,7 @@ export async function parseSQLite(buffer: ArrayBuffer, onProgress?: ProgressFn):
 
 export async function parseSQL(text: string, onProgress?: ProgressFn): Promise<ParsedTable[]> {
   onProgress?.(5, 'Loading database engine…');
-  const initSqlJs = (await import('sql.js')).default;
-  const SQL = await initSqlJs({ locateFile: (f: string) => `/${f}` });
+  const SQL = await getSQL();
 
   onProgress?.(15, 'Creating in-memory database…');
   const db = new SQL.Database();
