@@ -176,6 +176,28 @@ const translations = {
     // Nullable badge
     nullableBadge: 'nullable',
 
+    // Record modal
+    recordClickHint: 'Click a row to view full record',
+    recordModalTitle: 'Record detail',
+    recordRow: 'Row',
+    recordGroupDates: 'Dates & Times',
+    recordGroupCategories: 'Categories & Status',
+    recordGroupNumbers: 'Numbers',
+    recordGroupText: 'Text',
+    recordCopied: 'Copied!',
+    recordCopy: 'Copy value',
+    recordEmpty: 'empty',
+    recordShowMore: 'Show full text',
+    recordShowLess: 'Show less',
+    recordPrev: 'Previous record',
+    recordNext: 'Next record',
+
+    // Chart list view
+    listView: 'List',
+    chartView: 'Chart',
+    chartOther: 'Other',
+    chartOtherCategories: 'other categories',
+
     // Auto-generated column descriptions
     descDate: 'Stores timestamps or dates. Use this column for time-series analysis and trend detection over time.',
     descNumber: 'Contains numeric values. Suitable for statistical analysis, averages, and distribution charts.',
@@ -365,6 +387,28 @@ const translations = {
 
     // Nullable badge
     nullableBadge: 'nullable',
+
+    // Record modal
+    recordClickHint: 'Klik op een rij om het volledige record te bekijken',
+    recordModalTitle: 'Record detail',
+    recordRow: 'Rij',
+    recordGroupDates: 'Datums & Tijden',
+    recordGroupCategories: 'Categorieën & Status',
+    recordGroupNumbers: 'Getallen',
+    recordGroupText: 'Tekst',
+    recordCopied: 'Gekopieerd!',
+    recordCopy: 'Waarde kopiëren',
+    recordEmpty: 'leeg',
+    recordShowMore: 'Volledige tekst tonen',
+    recordShowLess: 'Minder tonen',
+    recordPrev: 'Vorig record',
+    recordNext: 'Volgend record',
+
+    // Chart list view
+    listView: 'Lijst',
+    chartView: 'Grafiek',
+    chartOther: 'Overig',
+    chartOtherCategories: 'andere categorieën',
 
     // Auto-generated column descriptions
     descDate: 'Bevat tijdstempels of datums. Gebruik deze kolom voor tijdreeksanalyse en het detecteren van trends.',

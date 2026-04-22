@@ -8,6 +8,7 @@ import {
 import { ParsedTable, ParsedColumn } from '@/types';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ColumnModal from '@/components/TableViewer/ColumnModal';
+import RecordModal from './RecordModal';
 import { clsx } from 'clsx';
 
 const PAGE_SIZE = 15;
@@ -34,6 +35,7 @@ export default function DataTable({ table, data }: Props) {
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [modalCol, setModalCol] = useState<ParsedColumn | null>(null);
+  const [recordIdx, setRecordIdx] = useState<number | null>(null);
 
   const baseRows = data ?? table.data;
   const cols = table.columns.slice(0, 10);
@@ -101,8 +103,11 @@ export default function DataTable({ table, data }: Props) {
     <>
       <div className="card overflow-hidden">
         {/* Toolbar */}
-        <div className="px-5 py-4 border-b border-surface-200 flex items-center justify-between gap-3 flex-wrap">
-          <h3 className="text-sm font-semibold text-slate-700">{t('recentData')}</h3>
+        <div className="px-5 py-4 border-b border-surface-200 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('recentData')}</h3>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t('recordClickHint')}</p>
+          </div>
           <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -135,7 +140,7 @@ export default function DataTable({ table, data }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-surface-50 border-b border-surface-200">
+                <tr className="bg-surface-50 dark:bg-slate-700/50 border-b border-surface-200 dark:border-slate-700">
                   {cols.map((col) => (
                     <th
                       key={col.originalName}
@@ -172,27 +177,34 @@ export default function DataTable({ table, data }: Props) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-100">
-                {pageRows.map((row, i) => (
-                  <tr key={i} className="hover:bg-surface-50 transition-colors">
-                    {cols.map((col) => {
-                      const val = row[col.originalName];
-                      const display = val === null || val === undefined ? '—' : String(val);
-                      return (
-                        <td
-                          key={col.originalName}
-                          className="px-4 py-2.5 text-slate-700 whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
-                          title={display === '—' ? undefined : display}
-                        >
-                          {display === '—'
-                            ? <span className="text-slate-300">—</span>
-                            : display
-                          }
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-surface-100 dark:divide-slate-700">
+                {pageRows.map((row, i) => {
+                  const absoluteIdx = page * PAGE_SIZE + i;
+                  return (
+                    <tr
+                      key={i}
+                      onClick={() => setRecordIdx(absoluteIdx)}
+                      className="hover:bg-primary-50/40 dark:hover:bg-primary-900/10 transition-colors cursor-pointer group"
+                    >
+                      {cols.map((col) => {
+                        const val = row[col.originalName];
+                        const display = val === null || val === undefined ? '—' : String(val);
+                        return (
+                          <td
+                            key={col.originalName}
+                            className="px-4 py-2.5 text-slate-700 dark:text-slate-300 whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis text-sm"
+                            title={display === '—' ? undefined : display}
+                          >
+                            {display === '—'
+                              ? <span className="text-slate-300 dark:text-slate-600">—</span>
+                              : display
+                            }
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -222,6 +234,16 @@ export default function DataTable({ table, data }: Props) {
       {/* Column detail modal */}
       {modalCol && (
         <ColumnModal col={modalCol} table={table} onClose={() => setModalCol(null)} />
+      )}
+
+      {/* Record detail modal */}
+      {recordIdx !== null && (
+        <RecordModal
+          table={table}
+          rows={sortedRows}
+          initialIndex={recordIdx}
+          onClose={() => setRecordIdx(null)}
+        />
       )}
     </>
   );
