@@ -4,7 +4,8 @@ import { ArrowLeft } from 'lucide-react';
 import { createSupabasePublicClient } from '@/lib/supabase/public';
 import { Button } from '@/components/ui/button';
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 type Post = {
   id: string;

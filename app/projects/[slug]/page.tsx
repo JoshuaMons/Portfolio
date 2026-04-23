@@ -5,7 +5,8 @@ import type { Project } from '@/types/portfolio';
 import { createSupabasePublicClient } from '@/lib/supabase/public';
 import { Button } from '@/components/ui/button';
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function ProjectDetailPage({ params }: { params: { slug: string } }) {
   const supabase = createSupabasePublicClient();

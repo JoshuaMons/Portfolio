@@ -1,7 +1,8 @@
 import type { PublishStatus } from '@/types/portfolio';
 import { createSupabasePublicClient } from '@/lib/supabase/public';
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 type TimelineItem = {
   id: string;

@@ -14,6 +14,40 @@ begin
 end;
 $$;
 
+-- Profile (admin info)
+create table if not exists public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  full_name text,
+  headline text,
+  bio text not null default '',
+  avatar_url text,
+  website_url text,
+  github_url text,
+  linkedin_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists set_profiles_updated_at on public.profiles;
+create trigger set_profiles_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_public_read" on public.profiles;
+create policy "profiles_public_read"
+on public.profiles
+for select
+using (true);
+
+drop policy if exists "profiles_owner_write" on public.profiles;
+create policy "profiles_owner_write"
+on public.profiles
+for all
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
 -- Projects
 create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),

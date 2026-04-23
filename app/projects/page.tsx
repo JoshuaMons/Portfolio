@@ -5,7 +5,8 @@ import { createSupabasePublicClient } from '@/lib/supabase/public';
 import { Button } from '@/components/ui/button';
 import { ProjectsClient } from './projects-client';
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function ProjectsPage() {
   const supabase = createSupabasePublicClient();

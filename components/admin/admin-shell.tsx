@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BookOpen, CalendarClock, LayoutDashboard, LogOut, PanelsTopLeft } from 'lucide-react';
+import { BookOpen, CalendarClock, LayoutDashboard, LogOut, PanelsTopLeft, User } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 
 const nav = [
   { href: '/admin', label: 'Overzicht', icon: LayoutDashboard },
+  { href: '/admin/profile', label: 'Profiel', icon: User },
   { href: '/admin/projects', label: 'Projecten', icon: PanelsTopLeft },
   { href: '/admin/blog', label: 'Logboek', icon: BookOpen },
   { href: '/admin/timeline', label: 'Timeline', icon: CalendarClock },
