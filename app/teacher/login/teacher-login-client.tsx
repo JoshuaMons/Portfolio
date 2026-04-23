@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,10 +19,16 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>;
 
+function safeNextPath(raw: string | null, fallback: string) {
+  if (!raw) return fallback;
+  if (!raw.startsWith('/') || raw.startsWith('//')) return fallback;
+  return raw;
+}
+
 export function TeacherLoginClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get('next') || '/teacher';
+  const nextPath = safeNextPath(searchParams.get('next'), '/teacher');
+  const configError = searchParams.get('error') === 'not_configured';
 
   const [error, setError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -43,8 +49,8 @@ export function TeacherLoginClient() {
         password: values.password,
       });
       if (error) throw error;
-      router.replace(nextPath);
-      router.refresh();
+      // Full navigation so Supabase session cookies are certainly visible to middleware on the next request.
+      window.location.assign(nextPath);
     } catch (e: any) {
       setError(e?.message ?? 'Inloggen mislukt.');
     } finally {
@@ -64,6 +70,13 @@ export function TeacherLoginClient() {
             <p className="text-xs text-muted-foreground">Voor reviewers/docenten</p>
           </div>
         </div>
+
+        {configError && (
+          <p className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+            <span className="font-semibold">TEACHER_USER_ID ontbreekt op de server.</span> Zet in Vercel (of .env.local) dezelfde UUID
+            als het docent-account in Supabase Authentication, en redeploy.
+          </p>
+        )}
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="mt-7 space-y-4">
           <div className="space-y-1.5">

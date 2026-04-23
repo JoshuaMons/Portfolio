@@ -41,12 +41,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  const isTeacherRoute =
-    request.nextUrl.pathname === '/teacher' ||
-    request.nextUrl.pathname.startsWith('/teacher/');
+  // Never gate the login page itself (otherwise: redirect loops + login unusable).
+  const isTeacherLogin =
+    request.nextUrl.pathname === '/teacher/login' || request.nextUrl.pathname.startsWith('/teacher/login/');
+  const isProtectedTeacher =
+    (request.nextUrl.pathname === '/teacher' || request.nextUrl.pathname.startsWith('/teacher/')) && !isTeacherLogin;
 
-  if (isTeacherRoute) {
-    if (!teacherUserId || userId !== teacherUserId) {
+  if (isProtectedTeacher) {
+    if (!teacherUserId) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/teacher/login';
+      redirectUrl.searchParams.set('next', request.nextUrl.pathname);
+      redirectUrl.searchParams.set('error', 'not_configured');
+      return NextResponse.redirect(redirectUrl);
+    }
+    if (userId !== teacherUserId) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = '/teacher/login';
       redirectUrl.searchParams.set('next', request.nextUrl.pathname);
@@ -58,6 +67,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/blog/:path*', '/teacher/:path*'],
+  // Include `/teacher` (root) and nested routes; `teacher/:path*` alone can miss the bare `/teacher` path in some versions.
+  matcher: ['/admin/:path*', '/blog/:path*', '/teacher', '/teacher/:path*'],
 };
 
