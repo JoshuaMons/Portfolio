@@ -17,6 +17,7 @@ type Profile = {
   headline: string | null;
   bio: string;
   avatar_url: string | null;
+  contact_email: string | null;
   website_url: string | null;
   github_url: string | null;
   linkedin_url: string | null;
@@ -47,7 +48,7 @@ export default function AdminProfilePage() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id,full_name,headline,bio,avatar_url,website_url,github_url,linkedin_url')
+        .select('id,full_name,headline,bio,avatar_url,contact_email,website_url,github_url,linkedin_url')
         .eq('id', userId)
         .maybeSingle();
 
@@ -63,6 +64,7 @@ export default function AdminProfilePage() {
           headline: null,
           bio: '',
           avatar_url: null,
+          contact_email: null,
           website_url: null,
           github_url: null,
           linkedin_url: null,
@@ -83,6 +85,7 @@ export default function AdminProfilePage() {
         headline: profile.headline?.trim() || null,
         bio: profile.bio ?? '',
         avatar_url: profile.avatar_url?.trim() || null,
+        contact_email: profile.contact_email?.trim() || null,
         website_url: profile.website_url?.trim() || null,
         github_url: profile.github_url?.trim() || null,
         linkedin_url: profile.linkedin_url?.trim() || null,
@@ -161,6 +164,20 @@ export default function AdminProfilePage() {
               onChange={(e) => setProfile((p) => (p ? { ...p, avatar_url: e.target.value } : p))}
               placeholder="https://…"
             />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="contact_email">Contact e-mail (voor reviews)</Label>
+            <Input
+              id="contact_email"
+              type="email"
+              value={profile.contact_email ?? ''}
+              onChange={(e) => setProfile((p) => (p ? { ...p, contact_email: e.target.value } : p))}
+              placeholder="jij@example.com"
+            />
+            <p className="text-xs text-muted-foreground">
+              Reviews van bezoekers worden naar dit adres gestuurd.
+            </p>
           </div>
 
           <div className="grid gap-1.5">

@@ -3,6 +3,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { SiteNavbar } from '@/components/site/site-navbar';
 import { ShaderScript } from '@/components/site/shader-script';
+import { ReviewWidget } from '@/components/site/review-widget';
 
 export const metadata: Metadata = {
   title: 'Portfolio — Fontys Business & AI',
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ShaderScript />
           <SiteNavbar />
           {children}
+          <ReviewWidget />
         </ThemeProvider>
       </body>
     </html>

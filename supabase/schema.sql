@@ -21,6 +21,7 @@ create table if not exists public.profiles (
   headline text,
   bio text not null default '',
   avatar_url text,
+  contact_email text,
   website_url text,
   github_url text,
   linkedin_url text,
