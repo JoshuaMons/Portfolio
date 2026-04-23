@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Download, FileText, Film, Image as ImageIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { SmartLinkPreview } from '@/components/preview/smart-link-preview';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -91,36 +92,9 @@ export function FilesClient({ initial }: { initial: PublicFile[] }) {
                         </a>
                       </Button>
                     </div>
-
-                    {(() => {
-                      const k = kind(active.mime_type, active.original_name);
-                      if (k === 'image') {
-                        return (
-                          <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/50">
-                            <img src={active.signed_url} alt={active.title} className="h-[60vh] w-full object-contain" />
-                          </div>
-                        );
-                      }
-                      if (k === 'video') {
-                        return (
-                          <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/50">
-                            <video src={active.signed_url} className="h-[60vh] w-full" controls />
-                          </div>
-                        );
-                      }
-                      if (k === 'pdf') {
-                        return (
-                          <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/50">
-                            <iframe src={active.signed_url} title={active.title} className="h-[60vh] w-full" />
-                          </div>
-                        );
-                      }
-                      return (
-                        <p className="text-sm text-muted-foreground">
-                          Geen inline preview voor dit bestandstype. Gebruik Download.
-                        </p>
-                      );
-                    })()}
+                    {active.signed_url ? (
+                      <SmartLinkPreview url={active.signed_url} title={active.title} />
+                    ) : null}
                   </div>
                 )}
               </TabsContent>

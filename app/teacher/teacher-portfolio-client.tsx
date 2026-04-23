@@ -1,10 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { ExternalLink, Eye, Link as LinkIcon } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 import type { Project, TeacherAssignment } from '@/types/portfolio';
 import { Button } from '@/components/ui/button';
+import { SmartLinkPreview } from '@/components/preview/smart-link-preview';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -16,11 +17,6 @@ type Item = {
   tags: string[];
   thumbnail_url: string | null;
 };
-
-function getThumbnailUrl(url: string) {
-  const encoded = encodeURIComponent(url);
-  return `https://image.thum.io/get/width/1200/${encoded}`;
-}
 
 function toItem(p: Project): Item {
   return {
@@ -51,8 +47,6 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
 
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState<Item | null>(null);
-  const [iframeLoaded, setIframeLoaded] = React.useState(false);
-  const [forceFallback, setForceFallback] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -70,13 +64,6 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
       }
     })();
   }, []);
-
-  React.useEffect(() => {
-    setIframeLoaded(false);
-    setForceFallback(false);
-  }, [active?.title]);
-
-  const canIframe = Boolean(active?.url) && !forceFallback;
 
   function openItem(item: Item) {
     setActive(item);
@@ -176,56 +163,18 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
                   <p className="text-sm text-muted-foreground">Geen URL ingevuld.</p>
                 ) : (
                   <div className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <LinkIcon className="h-3.5 w-3.5" />
-                        <span className="truncate">{active.url}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button asChild variant="outline" size="sm">
-                          <a href={active.url} target="_blank" rel="noreferrer">
-                            Open in nieuw tabblad
-                          </a>
-                        </Button>
-                        {active.kind === 'evidence' ? (
-                          <Button variant="outline" size="sm" onClick={() => window.open(active.url!, '_blank', 'noopener,noreferrer')}>
-                            Print / Save as PDF
-                          </Button>
-                        ) : null}
-                        <Button variant="ghost" size="sm" onClick={() => setForceFallback((v) => !v)}>
-                          <Eye className="h-4 w-4" />
-                          {canIframe ? 'Gebruik thumbnail' : 'Probeer iframe'}
+                    {active.kind === 'evidence' ? (
+                      <div className="flex justify-end">
+                        <Button variant="outline" size="sm" onClick={() => window.open(active.url!, '_blank', 'noopener,noreferrer')}>
+                          Print / Save as PDF
                         </Button>
                       </div>
-                    </div>
-
-                    {active.kind === 'evidence' || canIframe ? (
-                      <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/50">
-                        {active.kind !== 'evidence' && !iframeLoaded ? (
-                          <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 text-xs text-muted-foreground">
-                            <span>Preview laden…</span>
-                            <Button variant="outline" size="sm" onClick={() => setForceFallback(true)}>
-                              Thumbnail tonen
-                            </Button>
-                          </div>
-                        ) : null}
-                        <iframe
-                          src={active.url}
-                          title={`Preview: ${active.title}`}
-                          className="h-[60vh] w-full"
-                          onLoad={() => setIframeLoaded(true)}
-                        />
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/50">
-                        <img
-                          src={active.thumbnail_url || getThumbnailUrl(active.url)}
-                          alt={`Thumbnail: ${active.title}`}
-                          className="h-[60vh] w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
+                    ) : null}
+                    <SmartLinkPreview
+                      url={active.url}
+                      title={active.title}
+                      thumbnailUrl={active.thumbnail_url}
+                    />
                   </div>
                 )}
               </TabsContent>
