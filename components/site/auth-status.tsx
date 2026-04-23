@@ -2,16 +2,18 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { LogIn, Shield, GraduationCap, User } from 'lucide-react';
+import { Shield, GraduationCap, User } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 
 type ProfileRow = { full_name: string | null };
+type Role = 'anon' | 'admin' | 'teacher' | 'user';
 
 export function AuthStatus() {
   const [loading, setLoading] = React.useState(true);
   const [displayName, setDisplayName] = React.useState<string | null>(null);
+  const [role, setRole] = React.useState<Role>('anon');
 
   React.useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -25,6 +27,7 @@ export function AuthStatus() {
       const user = data.user;
       if (!user) {
         setDisplayName(null);
+        setRole('anon');
         setLoading(false);
         return;
       }
@@ -37,6 +40,11 @@ export function AuthStatus() {
 
       const name = (profile as ProfileRow | null)?.full_name?.trim() || user.email || 'Ingelogd';
       setDisplayName(name);
+
+      const roleRes = await fetch('/api/auth/role').catch(() => null);
+      const roleJson = roleRes ? await roleRes.json().catch(() => ({})) : {};
+      setRole((roleJson?.role as Role) || 'user');
+
       setLoading(false);
     })();
   }, []);
@@ -59,7 +67,7 @@ export function AuthStatus() {
           </Link>
         </Button>
         <Button asChild variant="outline" size="sm" className="gap-2">
-          <Link href="/teacher/login">
+          <Link href="/teacher/login?next=/teacher">
             <GraduationCap className="h-4 w-4" />
             Docenten
           </Link>
@@ -68,24 +76,14 @@ export function AuthStatus() {
     );
   }
 
+  const homeHref = role === 'teacher' ? '/teacher' : '/admin';
+
   return (
     <div className="flex items-center gap-2">
       <Button asChild variant="outline" size="sm" className="gap-2">
-        <Link href="/admin">
+        <Link href={homeHref}>
           <User className="h-4 w-4" />
           {displayName}
-        </Link>
-      </Button>
-      <Button asChild variant="outline" size="sm" className="gap-2">
-        <Link href="/admin">
-          <Shield className="h-4 w-4" />
-          Admin
-        </Link>
-      </Button>
-      <Button asChild variant="outline" size="sm" className="gap-2">
-        <Link href="/teacher">
-          <LogIn className="h-4 w-4" />
-          Docent view
         </Link>
       </Button>
     </div>

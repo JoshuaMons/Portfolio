@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Moon, Sun } from 'lucide-react';
+import { GraduationCap, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,12 @@ export function SiteNavbar() {
       <div className="mx-auto w-full max-w-6xl px-5 pt-4">
         <div className="glass-surface grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-3xl px-4 py-3 shadow-card">
           <nav className="hidden items-center gap-1 md:flex">
+            <Button asChild variant="outline" size="sm" className="mr-2 gap-2">
+              <Link href="/teacher">
+                <GraduationCap className="h-4 w-4" />
+                Docent view
+              </Link>
+            </Button>
             {nav.slice(0, 3).map((item) => {
               const active = pathname === item.href;
               return (
