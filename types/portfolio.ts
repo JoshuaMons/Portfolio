@@ -1,0 +1,26 @@
+export type PublishStatus = 'draft' | 'published';
+
+export interface Project {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  url: string | null;
+  tags: string[];
+  thumbnail_url: string | null;
+  status: PublishStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Post {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  status: PublishStatus;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+

@@ -374,7 +374,7 @@ export default function CategoryChart({ config }: { config: ChartConfig }) {
       {/* Subtitle */}
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
         {selected
-          ? <span>{t('chartSelected')}: <span className="font-medium text-slate-600 dark:text-slate-300">"{selected}"</span> — {t('clickToClear')}</span>
+          ? <span>{t('chartSelected')}: <span className="font-medium text-slate-600 dark:text-slate-300">&quot;{selected}&quot;</span> — {t('clickToClear')}</span>
           : <span>{t('chartNo1')}: <span className="font-medium text-slate-600 dark:text-slate-300">{topName}</span>&ensp;·&ensp;{t('chartTotal')}: <span className="font-medium text-slate-600 dark:text-slate-300">{total.toLocaleString()}</span></span>
         }
       </p>
