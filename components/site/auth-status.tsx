@@ -2,16 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Shield, GraduationCap, User, ChevronDown } from 'lucide-react';
+import { Shield, GraduationCap, User } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 type ProfileRow = { full_name: string | null };
 type Role = 'anon' | 'admin' | 'teacher' | 'user';
@@ -19,6 +13,7 @@ type Role = 'anon' | 'admin' | 'teacher' | 'user';
 export function AuthStatus() {
   const [loading, setLoading] = React.useState(true);
   const [displayName, setDisplayName] = React.useState<string | null>(null);
+  const [accountEmail, setAccountEmail] = React.useState<string | null>(null);
   const [role, setRole] = React.useState<Role>('anon');
 
   React.useEffect(() => {
@@ -33,10 +28,13 @@ export function AuthStatus() {
       const user = data.user;
       if (!user) {
         setDisplayName(null);
+        setAccountEmail(null);
         setRole('anon');
         setLoading(false);
         return;
       }
+
+      setAccountEmail(user.email ?? null);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -82,29 +80,32 @@ export function AuthStatus() {
     );
   }
 
+  async function teacherSignOut() {
+    const supabase = createSupabaseBrowserClient();
+    await supabase?.auth.signOut();
+    window.location.assign('/teacher/login');
+  }
+
   if (role === 'teacher') {
     return (
-      <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="gap-2">
-              Docent
-              <ChevronDown className="h-4 w-4 opacity-70" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onSelect={async (e) => {
-                e.preventDefault();
-                const supabase = createSupabaseBrowserClient();
-                await supabase?.auth.signOut();
-                window.location.assign('/teacher/login');
-              }}
-            >
-              Uitloggen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+        <Button asChild variant="outline" size="sm" className="gap-2 shrink-0">
+          <Link href="/teacher">
+            <GraduationCap className="h-4 w-4" />
+            Docent view
+          </Link>
+        </Button>
+        {accountEmail ? (
+          <span
+            className="max-w-[min(220px,42vw)] truncate rounded-xl border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground sm:max-w-[260px]"
+            title={accountEmail}
+          >
+            {accountEmail}
+          </span>
+        ) : null}
+        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void teacherSignOut()}>
+          Uitloggen
+        </Button>
       </div>
     );
   }

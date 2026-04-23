@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 import { Button } from '@/components/ui/button';
@@ -31,12 +31,6 @@ export function SiteNavbar() {
       <div className="mx-auto w-full max-w-6xl px-5 pt-4">
         <div className="glass-surface grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-3xl px-4 py-3 shadow-card">
           <nav className="hidden items-center gap-1 md:flex">
-            <Button asChild variant="outline" size="sm" className="mr-2 gap-2">
-              <Link href="/teacher">
-                <GraduationCap className="h-4 w-4" />
-                Docent view
-              </Link>
-            </Button>
             {nav.slice(0, 3).map((item) => {
               const active = pathname === item.href;
               return (
@@ -73,22 +67,36 @@ export function SiteNavbar() {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-center gap-1 px-5 pb-4 pt-3 md:hidden">
-        {nav.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'rounded-xl px-3 py-2 text-sm transition-colors',
-                active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-5 pb-4 pt-3 md:hidden">
+        <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/50 bg-background/40 px-3 py-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            className="gap-2"
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {isDark ? 'Light' : 'Dark'}
+          </Button>
+          <AuthStatus />
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {nav.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'rounded-xl px-3 py-2 text-sm transition-colors',
+                  active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </header>
   );
