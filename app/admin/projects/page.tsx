@@ -6,6 +6,7 @@ import { Plus, RefreshCw } from 'lucide-react';
 import type { Project, PublishStatus } from '@/types/portfolio';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/slug';
+import { writeAuditLog } from '@/lib/audit-log';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -116,6 +117,12 @@ export default function AdminProjectsPage() {
 
       const { error } = await supabase.from('projects').upsert(payload).select().single();
       if (error) throw error;
+      await writeAuditLog(supabase, {
+        action: form.id ? 'update' : 'create',
+        entity: 'project',
+        entity_id: form.id ?? null,
+        summary: `${form.id ? 'Bewerkt' : 'Aangemaakt'}: ${payload.title} (${payload.status})`,
+      });
       setOpen(false);
       await refresh();
     } catch (e: any) {
@@ -134,6 +141,7 @@ export default function AdminProjectsPage() {
       setError(error.message);
       return;
     }
+    await writeAuditLog(supabase, { action: 'delete', entity: 'project', entity_id: id, summary: `Verwijderd project (${id})` });
     await refresh();
   }
 

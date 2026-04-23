@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button';
 const nav = [
   { href: '/admin', label: 'Overzicht', icon: LayoutDashboard },
   { href: '/admin/profile', label: 'Profiel', icon: User },
+  { href: '/admin/logbook', label: 'Logboek', icon: BookOpen },
   { href: '/admin/projects', label: 'Projecten', icon: PanelsTopLeft },
-  { href: '/admin/blog', label: 'Logboek', icon: BookOpen },
   { href: '/admin/timeline', label: 'Timeline', icon: CalendarClock },
 ];
 

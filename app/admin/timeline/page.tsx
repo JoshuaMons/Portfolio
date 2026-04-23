@@ -5,6 +5,7 @@ import { Plus, RefreshCw } from 'lucide-react';
 
 import type { PublishStatus } from '@/types/portfolio';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { writeAuditLog } from '@/lib/audit-log';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -109,6 +110,12 @@ export default function AdminTimelinePage() {
 
       const { error } = await supabase.from('timeline_items').upsert(payload).select().single();
       if (error) throw error;
+      await writeAuditLog(supabase, {
+        action: form.id ? 'update' : 'create',
+        entity: 'timeline_item',
+        entity_id: form.id ?? null,
+        summary: `${form.id ? 'Bewerkt' : 'Aangemaakt'}: ${payload.title} (${payload.status})`,
+      });
       setOpen(false);
       await refresh();
     } catch (e: any) {
@@ -127,6 +134,7 @@ export default function AdminTimelinePage() {
       setError(error.message);
       return;
     }
+    await writeAuditLog(supabase, { action: 'delete', entity: 'timeline_item', entity_id: id, summary: `Verwijderd timeline item (${id})` });
     await refresh();
   }
 

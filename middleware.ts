@@ -27,7 +27,11 @@ export async function middleware(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const userId = data.user?.id ?? null;
 
-  const isAdminRoute = request.nextUrl.pathname === '/admin' || request.nextUrl.pathname.startsWith('/admin/');
+  const isAdminRoute =
+    request.nextUrl.pathname === '/admin' ||
+    request.nextUrl.pathname.startsWith('/admin/') ||
+    request.nextUrl.pathname === '/blog' ||
+    request.nextUrl.pathname.startsWith('/blog/');
 
   if (isAdminRoute && userId !== adminUserId) {
     const redirectUrl = request.nextUrl.clone();
@@ -40,6 +44,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/blog/:path*'],
 };
 

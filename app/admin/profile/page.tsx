@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ShaderControls } from '@/components/site/shader-controls';
+import { ShaderScript } from '@/components/site/shader-script';
+import { writeAuditLog } from '@/lib/audit-log';
 
 type Profile = {
   id: string;
@@ -87,6 +90,12 @@ export default function AdminProfilePage() {
 
       const { error } = await supabase.from('profiles').upsert(payload).select().single();
       if (error) throw error;
+      await writeAuditLog(supabase, {
+        action: 'update',
+        entity: 'profile',
+        entity_id: profile.id,
+        summary: `Profiel bijgewerkt: ${payload.full_name ?? ''}`.trim(),
+      });
     } catch (e: any) {
       setError(e?.message ?? 'Opslaan mislukt.');
     } finally {
@@ -95,15 +104,19 @@ export default function AdminProfilePage() {
   }
 
   return (
-    <div>
+    <div className="page-gradient -m-6 rounded-3xl p-6">
+      <ShaderScript />
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Profiel</h1>
           <p className="mt-1 text-sm text-muted-foreground">Deze info kan later op je About pagina worden getoond.</p>
         </div>
-        <Button onClick={save} disabled={!profile || saving}>
-          {saving ? 'Opslaan…' : 'Opslaan'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ShaderControls />
+          <Button onClick={save} disabled={!profile || saving}>
+            {saving ? 'Opslaan…' : 'Opslaan'}
+          </Button>
+        </div>
       </div>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
@@ -111,7 +124,7 @@ export default function AdminProfilePage() {
       {!profile ? (
         <p className="mt-6 text-sm text-muted-foreground">Laden…</p>
       ) : (
-        <div className="mt-6 grid gap-4">
+        <div className="glass-surface mt-6 grid gap-4 rounded-3xl p-6 shadow-card">
           <div className="grid gap-1.5">
             <Label htmlFor="full_name">Naam</Label>
             <Input

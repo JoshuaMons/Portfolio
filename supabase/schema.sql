@@ -48,6 +48,37 @@ for all
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
+-- Automatic audit log (admin-only)
+create table if not exists public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid(),
+  action text not null,
+  entity text not null,
+  entity_id uuid,
+  summary text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.audit_logs enable row level security;
+
+drop policy if exists "audit_logs_owner_read" on public.audit_logs;
+create policy "audit_logs_owner_read"
+on public.audit_logs
+for select
+using (auth.uid() = owner_id);
+
+drop policy if exists "audit_logs_owner_write" on public.audit_logs;
+create policy "audit_logs_owner_write"
+on public.audit_logs
+for insert
+with check (auth.uid() = owner_id);
+
+drop policy if exists "audit_logs_owner_delete" on public.audit_logs;
+create policy "audit_logs_owner_delete"
+on public.audit_logs
+for delete
+using (auth.uid() = owner_id);
+
 -- Projects
 create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
