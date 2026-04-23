@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { Download } from 'lucide-react';
 import { headers } from 'next/headers';
 
 import { Button } from '@/components/ui/button';
+import { AboutClient } from './about-client';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -12,6 +12,9 @@ type PublicProfile = {
   headline: string | null;
   bio: string;
   avatar_signed_url: string | null;
+  website_url?: string | null;
+  github_url?: string | null;
+  linkedin_url?: string | null;
 };
 
 export default async function AboutPage() {
@@ -36,50 +39,7 @@ export default async function AboutPage() {
         </Button>
       </div>
 
-      <div className="glass-surface mt-8 rounded-3xl p-8 shadow-card">
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="h-28 w-28 overflow-hidden rounded-3xl border border-border/60 bg-background/50">
-            {profile?.avatar_signed_url ? (
-              <img src={profile.avatar_signed_url} alt="Profielfoto" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Geen foto</div>
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-semibold">{profile?.full_name ?? 'Joshua'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{profile?.headline ?? 'Business & AI — portfolio'}</p>
-            <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">
-              {profile?.bio?.trim()
-                ? profile.bio
-                : 'Vul je bio in via /admin/profile. Deze tekst verschijnt hier automatisch.'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="glass-surface mt-6 rounded-3xl p-6 shadow-card">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">CV (Nederlands)</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Bekijk of download mijn CV.</p>
-          </div>
-          <Button asChild variant="outline" className="gap-2">
-            <a href="/cv-nl.pdf" download>
-              <Download className="h-4 w-4" />
-              Download CV
-            </a>
-          </Button>
-        </div>
-
-        <div className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/50">
-          <iframe
-            src="/cv-nl.pdf"
-            title="CV (Nederlands)"
-            className="h-[70vh] w-full"
-          />
-        </div>
-      </div>
+      <AboutClient profile={profile} />
     </div>
   );
 }

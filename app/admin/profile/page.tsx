@@ -106,6 +106,14 @@ export default function AdminProfilePage() {
       const signed = await supabase.storage.from('uploads').createSignedUrl(objectPath, 60 * 10);
       setAvatarPreview(signed.data?.signedUrl ?? null);
 
+      // Persist immediately so About page can show it without requiring "Opslaan"
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({ id: profile.id, avatar_url: objectPath })
+        .select()
+        .single();
+      if (upsertError) throw upsertError;
+
       setProfile((p) => (p ? { ...p, avatar_url: objectPath } : p));
 
       await writeAuditLog(supabase, {
