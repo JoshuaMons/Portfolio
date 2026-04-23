@@ -337,3 +337,40 @@ using (
   or show_on_website = true
 );
 
+-- =========================
+-- Patch: mini-project ZIP sites (modal / iframe via API-proxy)
+-- =========================
+create table if not exists public.mini_projects (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid(),
+  title text not null,
+  root_prefix text not null,
+  token uuid not null unique default gen_random_uuid(),
+  show_on_website boolean not null default false,
+  show_for_teacher boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists set_mini_projects_updated_at on public.mini_projects;
+create trigger set_mini_projects_updated_at
+before update on public.mini_projects
+for each row execute function public.set_updated_at();
+
+alter table public.mini_projects enable row level security;
+
+drop policy if exists "mini_projects_owner_all" on public.mini_projects;
+create policy "mini_projects_owner_all"
+on public.mini_projects
+for all
+using (auth.uid() = owner_id)
+with check (auth.uid() = owner_id);
+
+drop policy if exists "mini_projects_public_read_flag" on public.mini_projects;
+create policy "mini_projects_public_read_flag"
+on public.mini_projects
+for select
+using (show_on_website = true);
+
+alter table public.projects add column if not exists mini_project_token uuid null;
+

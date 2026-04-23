@@ -9,6 +9,8 @@ export interface Project {
   tags: string[];
   thumbnail_url: string | null;
   status: PublishStatus;
+  /** Optioneel: geüploade mini-site (ZIP); assets via `/api/mini-project/{token}/…`. */
+  mini_project_token?: string | null;
   created_at: string;
   updated_at: string;
 }

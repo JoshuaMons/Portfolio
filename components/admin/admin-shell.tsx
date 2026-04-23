@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BookOpen, CalendarClock, LayoutDashboard, LogOut, PanelsTopLeft, User } from 'lucide-react';
+import { BookOpen, CalendarClock, LayoutDashboard, Layers, LogOut, PanelsTopLeft, User } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { SiteLogo } from '@/components/site/site-logo';
 
 const nav = [
   { href: '/admin', label: 'Overzicht', icon: LayoutDashboard },
+  { href: '/admin/content', label: 'Alle content', icon: Layers },
   { href: '/admin/profile', label: 'Profiel', icon: User },
   { href: '/admin/logbook', label: 'Logboek', icon: BookOpen },
   { href: '/admin/projects', label: 'Projecten', icon: PanelsTopLeft },

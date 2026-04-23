@@ -6,4 +6,6 @@ import { revalidatePath } from 'next/cache';
 export async function revalidateAfterFileChange() {
   revalidatePath('/files');
   revalidatePath('/teacher');
+  revalidatePath('/admin/projects');
+  revalidatePath('/admin/content');
 }

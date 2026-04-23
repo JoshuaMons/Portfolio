@@ -32,7 +32,7 @@ Een modern portfolio-dashboard (Next.js App Router) dat je kunt hosten op Vercel
     - Projecten (publiek gepubliceerde projecten)
     - Docent opdrachten (teacher assignments vanuit DB)
 - **Waar in de code**:
-  - Teacher UI: `app/teacher/teacher-portfolio-client.tsx`
+  - Teacher UI: `app/teacher/teacher-projects-client.tsx` (projecten) en `app/teacher/teacher-logbook-client.tsx` (logboek)
   - Middleware bescherming: `middleware.ts` (gated via `TEACHER_USER_ID`)
 
 ### C) Auth UX: naam tonen in topbalk + docenten knop

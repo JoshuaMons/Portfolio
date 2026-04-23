@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
+type MiniRow = { id: string; title: string; token: string };
+
 type FormState = {
   id?: string;
   title: string;
@@ -22,6 +24,7 @@ type FormState = {
   tagsCsv: string;
   status: PublishStatus;
   thumbnail_url: string;
+  mini_project_token: string;
 };
 
 const emptyForm: FormState = {
@@ -32,6 +35,7 @@ const emptyForm: FormState = {
   tagsCsv: '',
   status: 'draft',
   thumbnail_url: '',
+  mini_project_token: '',
 };
 
 function tagsFromCsv(csv: string) {
@@ -43,6 +47,7 @@ function tagsFromCsv(csv: string) {
 
 export default function AdminProjectsPage() {
   const [items, setItems] = React.useState<Project[]>([]);
+  const [minis, setMinis] = React.useState<MiniRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -65,13 +70,14 @@ export default function AdminProjectsPage() {
     if (!supabase) return;
     setIsLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    const [pRes, mRes] = await Promise.all([
+      supabase.from('projects').select('*').order('updated_at', { ascending: false }),
+      supabase.from('mini_projects').select('id,title,token').order('created_at', { ascending: false }),
+    ]);
 
-    if (error) setError(error.message);
-    setItems((data as Project[]) ?? []);
+    if (pRes.error) setError(pRes.error.message);
+    setItems((pRes.data as Project[]) ?? []);
+    setMinis(mRes.error ? [] : ((mRes.data as MiniRow[]) ?? []));
     setIsLoading(false);
   }, []);
 
@@ -94,6 +100,7 @@ export default function AdminProjectsPage() {
       tagsCsv: (p.tags ?? []).join(', '),
       status: p.status,
       thumbnail_url: p.thumbnail_url ?? '',
+      mini_project_token: p.mini_project_token ?? '',
     });
     setOpen(true);
   }
@@ -113,6 +120,7 @@ export default function AdminProjectsPage() {
         tags: tagsFromCsv(form.tagsCsv),
         status: form.status,
         thumbnail_url: form.thumbnail_url.trim() || null,
+        mini_project_token: form.mini_project_token.trim() || null,
       };
 
       const { error } = await supabase.from('projects').upsert(payload).select().single();
@@ -178,7 +186,10 @@ export default function AdminProjectsPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">{p.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">/{p.slug} · {p.status}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    /{p.slug} · {p.status}
+                    {p.mini_project_token ? ' · mini-site' : ''}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={() => startEdit(p)}>
@@ -241,6 +252,24 @@ export default function AdminProjectsPage() {
                 onChange={(e) => setForm((s) => ({ ...s, thumbnail_url: e.target.value }))}
                 placeholder="Wordt later automatisch gevuld als fallback."
               />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="mini_project_token">Mini-site (ZIP-import, optioneel)</Label>
+              <select
+                id="mini_project_token"
+                value={form.mini_project_token}
+                onChange={(e) => setForm((s) => ({ ...s, mini_project_token: e.target.value }))}
+                className="h-10 rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="">— geen —</option>
+                {minis.map((m) => (
+                  <option key={m.id} value={m.token}>
+                    {m.title}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">Importeer eerst een ZIP via Uploads. HTML/CSS/JS worden via de server geladen zodat styles werken.</p>
             </div>
 
             <div className="grid gap-1.5">

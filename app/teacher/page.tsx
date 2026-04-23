@@ -1,6 +1,6 @@
 import type { Project } from '@/types/portfolio';
 import { createSupabasePublicClient } from '@/lib/supabase/public';
-import { TeacherPortfolioClient } from './teacher-portfolio-client';
+import { TeacherProjectsClient } from './teacher-projects-client';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,7 +15,7 @@ export default async function TeacherPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-12">
-      <TeacherPortfolioClient projects={projects} />
+      <TeacherProjectsClient projects={projects} />
     </div>
   );
 }

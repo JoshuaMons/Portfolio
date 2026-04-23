@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, RefreshCw, UploadCloud } from 'lucide-react';
+import { FolderArchive, Plus, RefreshCw, UploadCloud } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { writeAuditLog } from '@/lib/audit-log';
@@ -96,6 +96,12 @@ export default function AdminUploadsPage() {
   const [open, setOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState<FormState>(emptyForm);
+
+  const [zipTitle, setZipTitle] = React.useState('');
+  const [zipFile, setZipFile] = React.useState<File | null>(null);
+  const [zipWeb, setZipWeb] = React.useState(false);
+  const [zipTeach, setZipTeach] = React.useState(true);
+  const [zipBusy, setZipBusy] = React.useState(false);
 
   const supabaseRef = React.useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
 
@@ -232,6 +238,34 @@ export default function AdminUploadsPage() {
     }
   }
 
+  async function importMiniZip() {
+    if (!zipTitle.trim() || !zipFile) {
+      setError('Vul een titel in en kies een .zip met index.html in de map.');
+      return;
+    }
+    setZipBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('title', zipTitle.trim());
+      fd.append('file', zipFile);
+      fd.append('show_on_website', zipWeb ? 'true' : 'false');
+      fd.append('show_for_teacher', zipTeach ? 'true' : 'false');
+      const res = await fetch('/api/admin/mini-project', { method: 'POST', body: fd });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'ZIP-import mislukt');
+      setZipTitle('');
+      setZipFile(null);
+      await refresh();
+      await revalidateAfterFileChange();
+      router.refresh();
+    } catch (e: any) {
+      setError(e?.message ?? 'ZIP-import mislukt');
+    } finally {
+      setZipBusy(false);
+    }
+  }
+
   async function remove(row: FileRow) {
     const supabase = supabaseRef.current;
     if (!supabase) return;
@@ -318,6 +352,45 @@ export default function AdminUploadsPage() {
             </div>
           ))
         )}
+      </div>
+
+      <div className="mt-10 rounded-3xl border border-border/60 bg-background/40 p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <FolderArchive className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold">Mini-project (ZIP)</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Upload een map als .zip met een <span className="font-medium">index.html</span> (plus css/js/assets). De site wordt via de server
+              uitgeserveerd zodat styles en scripts werken in modals. Koppel daarna het project onder{' '}
+              <span className="font-medium">Projecten → mini-site</span>.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="zipTitle">Titel</Label>
+                <Input id="zipTitle" value={zipTitle} onChange={(e) => setZipTitle(e.target.value)} placeholder="Bijv. Dashboard prototype" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="zipFile">ZIP-bestand</Label>
+                <Input id="zipFile" type="file" accept=".zip" onChange={(e) => setZipFile(e.target.files?.[0] ?? null)} />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-4 text-sm">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={zipWeb} onChange={(e) => setZipWeb(e.target.checked)} />
+                Publiek via website (iframe op projectpagina)
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={zipTeach} onChange={(e) => setZipTeach(e.target.checked)} />
+                Docentenportaal (modal)
+              </label>
+            </div>
+            <Button type="button" className="mt-4" disabled={zipBusy} onClick={() => void importMiniZip()}>
+              {zipBusy ? 'Importeren…' : 'ZIP importeren'}
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
