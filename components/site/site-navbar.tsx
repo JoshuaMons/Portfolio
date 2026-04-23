@@ -52,7 +52,7 @@ export function SiteNavbar() {
             <SiteLogo />
           </div>
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="hidden items-center justify-end gap-2 md:flex">
             <Button
               variant="outline"
               size="sm"

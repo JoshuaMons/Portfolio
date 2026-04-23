@@ -10,10 +10,17 @@ export const metadata: Metadata = {
   description: 'Portfolio dashboard met projecten, logboek en admin.',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover' as const,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="nl" suppressHydrationWarning>
-      <body className="min-h-dvh page-gradient">
+      <body className="min-h-dvh overflow-x-hidden page-gradient">
         <ThemeProvider>
           <ShaderScript />
           <SiteNavbar />

@@ -35,7 +35,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto min-h-dvh w-full max-w-6xl px-5 py-6">
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
-        <aside className="glass-surface h-fit rounded-3xl p-4 shadow-card">
+        <aside className="glass-surface h-fit min-w-0 rounded-3xl p-4 shadow-card">
           <div className="flex items-center justify-between gap-2 px-2 py-2">
             <div className="leading-tight">
               <SiteLogo />
@@ -68,7 +68,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <main className="glass-surface rounded-3xl p-6 shadow-card">{children}</main>
+        <main className="glass-surface min-w-0 rounded-3xl p-4 shadow-card sm:p-6">{children}</main>
       </div>
     </div>
   );

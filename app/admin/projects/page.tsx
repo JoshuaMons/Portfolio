@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Plus, RefreshCw } from 'lucide-react';
 
 import type { Project, PublishStatus } from '@/types/portfolio';
@@ -10,12 +11,14 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/slug';
 import { writeAuditLog } from '@/lib/audit-log';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 type MiniRow = { id: string; title: string; token: string };
+
+type PickerFile = { id: string; title: string; original_name: string };
 
 type FormState = {
   id?: string;
@@ -27,6 +30,8 @@ type FormState = {
   status: PublishStatus;
   thumbnail_url: string;
   mini_project_token: string;
+  linkedFileId: string;
+  uploadFile: File | null;
 };
 
 const emptyForm: FormState = {
@@ -38,6 +43,8 @@ const emptyForm: FormState = {
   status: 'draft',
   thumbnail_url: '',
   mini_project_token: '',
+  linkedFileId: '',
+  uploadFile: null,
 };
 
 function tagsFromCsv(csv: string) {
@@ -47,10 +54,16 @@ function tagsFromCsv(csv: string) {
     .filter(Boolean);
 }
 
+function streamFileIdFromUrl(u: string): string {
+  const m = u.trim().match(/\/api\/files\/stream\/([0-9a-f-]{36})/i);
+  return m?.[1] ?? '';
+}
+
 export default function AdminProjectsPage() {
   const router = useRouter();
   const [items, setItems] = React.useState<Project[]>([]);
   const [minis, setMinis] = React.useState<MiniRow[]>([]);
+  const [pickerFiles, setPickerFiles] = React.useState<PickerFile[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -73,14 +86,16 @@ export default function AdminProjectsPage() {
     if (!supabase) return;
     setIsLoading(true);
     setError(null);
-    const [pRes, mRes] = await Promise.all([
+    const [pRes, mRes, fRes] = await Promise.all([
       supabase.from('projects').select('*').order('updated_at', { ascending: false }),
       supabase.from('mini_projects').select('id,title,token').order('created_at', { ascending: false }),
+      supabase.from('files').select('id,title,original_name').order('updated_at', { ascending: false }),
     ]);
 
     if (pRes.error) setError(pRes.error.message);
     setItems((pRes.data as Project[]) ?? []);
     setMinis(mRes.error ? [] : ((mRes.data as MiniRow[]) ?? []));
+    setPickerFiles(fRes.error ? [] : ((fRes.data as PickerFile[]) ?? []));
     setIsLoading(false);
   }, []);
 
@@ -89,11 +104,12 @@ export default function AdminProjectsPage() {
   }, [refresh]);
 
   function startCreate() {
-    setForm(emptyForm);
+    setForm({ ...emptyForm });
     setOpen(true);
   }
 
   function startEdit(p: Project) {
+    const streamId = streamFileIdFromUrl(p.url ?? '');
     setForm({
       id: p.id,
       title: p.title,
@@ -104,22 +120,119 @@ export default function AdminProjectsPage() {
       status: p.status,
       thumbnail_url: p.thumbnail_url ?? '',
       mini_project_token: p.mini_project_token ?? '',
+      linkedFileId: streamId,
+      uploadFile: null,
     });
     setOpen(true);
   }
+
+  const canAttemptSave =
+    Boolean(form.title.trim()) ||
+    Boolean(form.uploadFile) ||
+    Boolean(form.linkedFileId) ||
+    Boolean(form.mini_project_token.trim());
 
   async function save() {
     const supabase = supabaseRef.current;
     if (!supabase) return;
     setSaving(true);
     setError(null);
+
+    let uploadedPath: string | null = null;
+    let uploadedFileId: string | null = null;
+
     try {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) throw userErr;
+      const ownerId = userData.user?.id;
+      if (!ownerId) throw new Error('Niet ingelogd.');
+
+      let streamFileId: string | null = null;
+
+      if (form.uploadFile) {
+        const file = form.uploadFile;
+        const fileId = crypto.randomUUID();
+        const safeName = file.name.replace(/[^\w.\-() ]+/g, '_');
+        const storagePath = `owner/${ownerId}/${fileId}/${safeName}`;
+        const upload = await supabase.storage.from('uploads').upload(storagePath, file, {
+          contentType: file.type || undefined,
+          upsert: false,
+        });
+        if (upload.error) throw upload.error;
+        uploadedPath = storagePath;
+        uploadedFileId = fileId;
+
+        const titleForRow = form.title.trim() || file.name.replace(/\.[^.]+$/, '').trim() || file.name;
+        const { error: insErr } = await supabase.from('files').insert({
+          id: fileId,
+          owner_id: ownerId,
+          title: titleForRow,
+          description: form.description ?? '',
+          tags: tagsFromCsv(form.tagsCsv),
+          storage_path: storagePath,
+          original_name: file.name,
+          mime_type: file.type || null,
+          size_bytes: file.size,
+          visibility: 'public',
+          show_on_website: true,
+          show_for_teacher: false,
+        });
+        if (insErr) throw insErr;
+
+        await writeAuditLog(supabase, {
+          action: 'create',
+          entity: 'file',
+          entity_id: fileId,
+          summary: `Bestand via projectformulier: ${titleForRow}`,
+        });
+
+        streamFileId = fileId;
+      } else if (form.linkedFileId) {
+        streamFileId = form.linkedFileId;
+      }
+
+      const manualUrl = form.url.trim();
+      const resolvedUrl =
+        manualUrl || (streamFileId ? `/api/files/stream/${streamFileId}` : null);
+
+      const hasMini = Boolean(form.mini_project_token.trim());
+      if (!resolvedUrl && !hasMini) {
+        throw new Error('Vul een externe URL in, kies of upload een bestand, of kies een mini-site.');
+      }
+
+      let titleFinal = form.title.trim();
+      if (!titleFinal && form.uploadFile) {
+        titleFinal =
+          form.uploadFile.name.replace(/\.[^.]+$/, '').trim() || form.uploadFile.name;
+      }
+      if (!titleFinal && form.linkedFileId) {
+        const pick = pickerFiles.find((f) => f.id === form.linkedFileId);
+        titleFinal = pick?.title?.trim() || pick?.original_name?.replace(/\.[^.]+$/, '').trim() || pick?.original_name || 'Project';
+      }
+      if (!titleFinal && hasMini) {
+        const mini = minis.find((m) => m.token === form.mini_project_token.trim());
+        titleFinal = mini?.title ?? 'Project';
+      }
+      if (!titleFinal.trim()) throw new Error('Vul een titel in (of upload/kies een bestand voor automatische titel).');
+
+      if (resolvedUrl?.startsWith('/api/files/stream/')) {
+        const streamRowId = streamFileIdFromUrl(resolvedUrl);
+        if (streamRowId) {
+          const { error: visErr } = await supabase
+            .from('files')
+            .update({ show_on_website: true, visibility: 'public' })
+            .eq('id', streamRowId);
+          if (visErr) throw visErr;
+        }
+      }
+
+      const slugBase = form.slug.trim() || slugify(titleFinal);
       const payload = {
         id: form.id,
-        title: form.title.trim(),
-        slug: form.slug.trim() || slugify(form.title),
+        title: titleFinal.trim(),
+        slug: slugBase,
         description: form.description ?? '',
-        url: form.url.trim() || null,
+        url: resolvedUrl,
         tags: tagsFromCsv(form.tagsCsv),
         status: form.status,
         thumbnail_url: form.thumbnail_url.trim() || null,
@@ -138,8 +251,21 @@ export default function AdminProjectsPage() {
       await refresh();
       await revalidatePortfolioContent();
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message ?? 'Opslaan mislukt.');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Opslaan mislukt.';
+      setError(msg);
+      if (uploadedPath && uploadedFileId) {
+        try {
+          await supabase.storage.from('uploads').remove([uploadedPath]);
+        } catch {
+          /* best effort */
+        }
+        try {
+          await supabase.from('files').delete().eq('id', uploadedFileId);
+        } catch {
+          /* best effort */
+        }
+      }
     } finally {
       setSaving(false);
     }
@@ -162,20 +288,21 @@ export default function AdminProjectsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold">Projecten</h1>
           <p className="mt-1 text-sm text-muted-foreground">Beheer je portfolio projecten.</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={refresh} disabled={isLoading}>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={refresh} disabled={isLoading} className="flex-1 sm:flex-none">
             <RefreshCw className="h-4 w-4" />
-            Refresh
+            <span className="ml-2 sm:hidden">Vernieuwen</span>
+            <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
-          <Button onClick={startCreate}>
+          <Button onClick={startCreate} className="flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
-            Nieuw project
+            <span className="ml-2">Nieuw project</span>
           </Button>
         </div>
       </div>
@@ -190,19 +317,19 @@ export default function AdminProjectsPage() {
         ) : (
           items.map((p) => (
             <div key={p.id} className="rounded-2xl border border-border/60 bg-background/50 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <p className="font-semibold">{p.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 break-all text-xs text-muted-foreground">
                     /{p.slug} · {p.status}
                     {p.mini_project_token ? ' · mini-site' : ''}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => startEdit(p)}>
+                <div className="flex flex-wrap gap-2 sm:shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => startEdit(p)}>
                     Bewerken
                   </Button>
-                  <Button variant="ghost" onClick={() => remove(p.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => remove(p.id)}>
                     Verwijderen
                   </Button>
                 </div>
@@ -213,13 +340,17 @@ export default function AdminProjectsPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <span />
-        </DialogTrigger>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>{form.id ? 'Project bewerken' : 'Nieuw project'}</DialogTitle>
-            <DialogDescription>Vul je project info in. URL wordt gebruikt voor de modal preview.</DialogDescription>
+            <DialogDescription>
+              URL voor preview in de site. Laat URL leeg en kies of upload een bestand — dan wordt automatisch een
+              stabiele preview-link gezet (<code className="text-xs">/api/files/stream/…</code>). Zie ook{' '}
+              <Link href="/admin/uploads" className="font-medium text-primary underline-offset-4 hover:underline">
+                Uploads
+              </Link>
+              .
+            </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">
@@ -232,7 +363,7 @@ export default function AdminProjectsPage() {
                   const title = e.target.value;
                   setForm((s) => ({ ...s, title, slug: s.slug ? s.slug : slugify(title) }));
                 }}
-                placeholder="Bijv. AI project — dashboard"
+                placeholder="Bijv. AI project — dashboard (mag leeg bij upload/kies bestand)"
               />
             </div>
 
@@ -242,13 +373,81 @@ export default function AdminProjectsPage() {
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="url">Website URL</Label>
+              <Label htmlFor="url">Website URL (optioneel als je bestand kiest)</Label>
               <Input
                 id="url"
                 value={form.url}
                 onChange={(e) => setForm((s) => ({ ...s, url: e.target.value }))}
-                placeholder="https://…"
+                placeholder="https://…  of leeg voor bestand hieronder"
               />
+            </div>
+
+            <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
+              <p className="text-sm font-medium">Geüpload bestand koppelen</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Kies een bestaand bestand uit Uploads, of upload hier direct. Als de URL hierboven leeg is, wordt de
+                preview-URL automatisch van dit bestand afgeleid — het project wordt altijd opgeslagen na een geslaagde
+                upload.
+              </p>
+              <div className="mt-3 grid gap-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="linkedFile">Bestand uit bibliotheek</Label>
+                  <select
+                    id="linkedFile"
+                    value={form.linkedFileId}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setForm((s) => {
+                        if (!v) {
+                          return {
+                            ...s,
+                            linkedFileId: '',
+                            uploadFile: null,
+                            url: s.url.includes('/api/files/stream/') ? '' : s.url,
+                          };
+                        }
+                        return {
+                          ...s,
+                          linkedFileId: v,
+                          uploadFile: null,
+                          url:
+                            s.url.trim() && !s.url.includes('/api/files/stream/')
+                              ? s.url
+                              : `/api/files/stream/${v}`,
+                        };
+                      });
+                    }}
+                    className="h-10 w-full max-w-full rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">— geen —</option>
+                    {pickerFiles.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.title} ({f.original_name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="projectUpload">Of nieuw bestand uploaden</Label>
+                  <label className="flex cursor-pointer flex-col gap-2 rounded-xl border border-dashed border-input bg-background/60 px-3 py-4 text-sm text-muted-foreground transition-colors hover:bg-accent/40">
+                    <span>{form.uploadFile ? form.uploadFile.name : 'Klik om een bestand te kiezen…'}</span>
+                    <input
+                      id="projectUpload"
+                      type="file"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setForm((s) => ({
+                          ...s,
+                          uploadFile: f,
+                          linkedFileId: f ? '' : s.linkedFileId,
+                          url: s.url.trim() ? s.url : '',
+                        }));
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-1.5">
@@ -267,7 +466,7 @@ export default function AdminProjectsPage() {
                 id="mini_project_token"
                 value={form.mini_project_token}
                 onChange={(e) => setForm((s) => ({ ...s, mini_project_token: e.target.value }))}
-                className="h-10 rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="h-10 w-full max-w-full rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">— geen —</option>
                 {minis.map((m) => (
@@ -276,7 +475,7 @@ export default function AdminProjectsPage() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-muted-foreground">Importeer eerst een ZIP via Uploads. HTML/CSS/JS worden via de server geladen zodat styles werken.</p>
+              <p className="text-xs text-muted-foreground">Importeer eerst een ZIP via Uploads.</p>
             </div>
 
             <div className="grid gap-1.5">
@@ -295,7 +494,7 @@ export default function AdminProjectsPage() {
                 id="status"
                 value={form.status}
                 onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as PublishStatus }))}
-                className="h-10 rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="h-10 w-full max-w-full rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="draft">draft</option>
                 <option value="published">published</option>
@@ -309,15 +508,16 @@ export default function AdminProjectsPage() {
                 value={form.description}
                 onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
                 placeholder="Wat was het doel, jouw rol, gebruikte tech, resultaten…"
+                className="min-h-[120px] resize-y"
               />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
               Annuleren
             </Button>
-            <Button onClick={save} disabled={saving || !form.title.trim()}>
+            <Button onClick={() => void save()} disabled={saving || !canAttemptSave}>
               {saving ? 'Opslaan…' : 'Opslaan'}
             </Button>
           </DialogFooter>
@@ -326,4 +526,3 @@ export default function AdminProjectsPage() {
     </div>
   );
 }
-
