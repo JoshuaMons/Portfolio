@@ -1,0 +1,86 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0\fswiss Calibri;}}
+\paperw11906\paperh16838\margl1440\margr1440\margt1440\margb1440
+\fs24
+\pard\b\fs40 Joshua's Portfolio \b0\fs24\par
+\pard Fontys Business \& AI portfolio dashboard\par
+\pard\par
+\pard\b Wat is dit?\b0\par
+\pard Dit is een Next.js webapp met Supabase (Auth + Database). Jij bent de enige admin.\par
+\pard Bezoekers zien alleen content met status \i published\i0.\par
+\pard\par
+\pard\b Belangrijkste pagina's\b0\par
+\pard - Home: /\par
+\pard - Projecten: /projects (met modal preview)\par
+\pard - Logboek: /blog\par
+\pard - Timeline: /timeline\par
+\pard - Admin: /admin (na login)\par
+\pard\par
+\pard\b Hoe werkt de database?\b0\par
+\pard In Supabase staan tabellen:\par
+\pard - projects\par
+\pard - posts\par
+\pard - timeline_items\par
+\pard - profiles (jouw admin profiel)\par
+\pard\par
+\pard RLS (Row Level Security) zorgt ervoor dat:\par
+\pard - Iedereen mag \i select\i0 doen op gepubliceerde items\par
+\pard - Alleen jouw account mag \i insert/update/delete\i0 (op eigen rows)\par
+\pard\par
+\page
+\pard\b\fs32 Setup (lokaal)\b0\fs24\par
+\pard\b 1) Supabase project\b0\par
+\pard Maak een Supabase project aan.\par
+\pard\par
+\pard\b 2) SQL schema runnen\b0\par
+\pard Ga naar Supabase \u8594? SQL Editor \u8594? plak en run het bestand:\par
+\pard supabase/schema.sql\par
+\pard\par
+\pard\b 3) Admin user\b0\par
+\pard Supabase \u8594? Authentication \u8594? Users \u8594? maak jouw user aan (email + password).\par
+\pard Kopieer jouw User ID (UUID) \u8594? dat is ADMIN_USER_ID.\par
+\pard\par
+\pard\b 4) Env vars\b0\par
+\pard Maak in de project root een bestand .env.local met:\par
+\pard NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co\par
+\pard NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...\par
+\pard ADMIN_USER_ID=...\par
+\pard\par
+\pard\b 5) Start\b0\par
+\pard Open een terminal in de projectmap en run:\par
+\pard npm install\par
+\pard npm run dev\par
+\pard\par
+\page
+\pard\b\fs32 Admin gebruik\b0\fs24\par
+\pard\b Projecten\b0\par
+\pard - Ga naar /admin/projects\par
+\pard - Maak een project aan en zet status op published\par
+\pard - Op /projects verschijnt het meteen (publieke pagina’s zijn dynamisch)\par
+\pard\par
+\pard\b Logboek\b0\par
+\pard - Ga naar /admin/blog\par
+\pard - Maak een post aan en zet status op published (en optioneel published_at)\par
+\pard\par
+\pard\b Timeline\b0\par
+\pard - Ga naar /admin/timeline\par
+\pard - Zet status op published\par
+\pard\par
+\pard\b Profiel\b0\par
+\pard - Ga naar /admin/profile\par
+\pard - Vul je naam/headline/bio/links in \u8594? dit wordt opgeslagen in de profiles tabel\par
+\pard\par
+\page
+\pard\b\fs32 UI / instellingen\b0\fs24\par
+\pard\b Gradient shader\b0\par
+\pard Bovenaan in de navbar zit de knop \b Gradient\b0.\par
+\pard Hiermee pas je live de achtergrond-gradient aan (kleuren + intensiteit + angle).\par
+\pard Dit wordt automatisch opgeslagen in je browser (localStorage).\par
+\pard\par
+\pard\b Light/Dark mode\b0\par
+\pard In de navbar zit ook een Light/Dark knop. Dit schakelt het hele theme.\par
+\pard\par
+\pard\b Altijd terug naar Home\b0\par
+\pard Het logo \i Joshua's Portfolio\i0 staat gecentreerd in de navbar en is altijd klikbaar naar /\par
+}
+

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,6 +6,15 @@
 
 :root {
   --radius: 16px;
+
+  /* Customizable gradient shader (persisted in localStorage via client script) */
+  --shader-a: 99, 102, 241;
+  --shader-b: 16, 185, 129;
+  --shader-c: 59, 130, 246;
+  --shader-a-alpha: 0.22;
+  --shader-b-alpha: 0.12;
+  --shader-c-alpha: 0.10;
+  --shader-angle: 135deg;
 
   --background: 210 40% 98%;
   --foreground: 222 47% 11%;
@@ -97,6 +106,10 @@ body {
   }
 
   .page-gradient {
-    @apply bg-[radial-gradient(circle_at_20%_10%,rgba(99,102,241,0.22),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(16,185,129,0.12),transparent_35%),linear-gradient(to_bottom,hsl(var(--background)),hsl(var(--background)))];
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(var(--shader-a), var(--shader-a-alpha)), transparent 40%),
+      radial-gradient(circle at 80% 30%, rgba(var(--shader-b), var(--shader-b-alpha)), transparent 35%),
+      radial-gradient(circle at 50% 85%, rgba(var(--shader-c), var(--shader-c-alpha)), transparent 45%),
+      linear-gradient(var(--shader-angle), hsl(var(--background)), hsl(var(--background)));
   }
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { SiteNavbar } from '@/components/site/site-navbar';
+import { ShaderScript } from '@/components/site/shader-script';
 
 export const metadata: Metadata = {
   title: 'Portfolio — Fontys Business & AI',
@@ -11,7 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="nl" suppressHydrationWarning>
       <body className="min-h-dvh page-gradient">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ShaderScript />
+          <SiteNavbar />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
