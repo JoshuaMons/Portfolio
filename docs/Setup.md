@@ -16,6 +16,16 @@ Verplicht:
 Open je Supabase dashboard → **SQL Editor** → run:
 - [`supabase/schema.sql`](../supabase/schema.sql)
 
+### Fix: `column profiles.contact_email does not exist`
+Als je deze error ziet, run dan opnieuw `supabase/schema.sql`.
+Het schema bevat nu een **idempotente** patch:
+- `alter table public.profiles add column if not exists contact_email text;`
+
+### Storage: bucket `uploads`
+Voor file uploads heb je een Supabase Storage bucket nodig:
+- Bucket naam: `uploads`
+- Visibility: **private**
+
 ## 3) Auth user aanmaken
 In Supabase → **Authentication**:
 - Maak je account aan (email + password)
@@ -31,4 +41,9 @@ Open daarna:
 - `/` (home)
 - `/projects` (public)
 - `/login` → `/admin` (privé)
+
+## 5) Public files pagina
+De publieke pagina `/files` gebruikt een server API route om **signed URLs** te maken.
+Daarvoor moet je op Vercel ook zetten:
+- `SUPABASE_SERVICE_ROLE_KEY`
 

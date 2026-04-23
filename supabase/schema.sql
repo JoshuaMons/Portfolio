@@ -29,6 +29,9 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+-- Idempotent patch if table existed without new columns
+alter table public.profiles add column if not exists contact_email text;
+
 drop trigger if exists set_profiles_updated_at on public.profiles;
 create trigger set_profiles_updated_at
 before update on public.profiles
@@ -48,6 +51,42 @@ on public.profiles
 for all
 using (auth.uid() = id)
 with check (auth.uid() = id);
+
+-- File metadata (paired with Supabase Storage bucket `uploads`)
+create table if not exists public.files (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid(),
+  title text not null,
+  description text not null default '',
+  tags text[] not null default '{}',
+  storage_path text not null,
+  original_name text not null,
+  mime_type text,
+  size_bytes bigint,
+  visibility text not null default 'private' check (visibility in ('private', 'public')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists set_files_updated_at on public.files;
+create trigger set_files_updated_at
+before update on public.files
+for each row execute function public.set_updated_at();
+
+alter table public.files enable row level security;
+
+drop policy if exists "files_public_read" on public.files;
+create policy "files_public_read"
+on public.files
+for select
+using (visibility = 'public' or auth.uid() = owner_id);
+
+drop policy if exists "files_owner_write" on public.files;
+create policy "files_owner_write"
+on public.files
+for all
+using (auth.uid() = owner_id)
+with check (auth.uid() = owner_id);
 
 -- Automatic audit log (admin-only)
 create table if not exists public.audit_logs (

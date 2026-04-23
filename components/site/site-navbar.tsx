@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SiteLogo } from './site-logo';
+import { AuthStatus } from '@/components/site/auth-status';
 
 const nav = [
   { href: '/projects', label: 'Projecten' },
@@ -61,9 +62,7 @@ export function SiteNavbar() {
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               {isDark ? 'Light' : 'Dark'}
             </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/login">Admin</Link>
-            </Button>
+            <AuthStatus />
           </div>
         </div>
       </div>
