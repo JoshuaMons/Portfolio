@@ -12,6 +12,12 @@ Verplicht:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `ADMIN_USER_ID` (jouw Supabase Auth user id)
 
+Docent-login + logboek (server routes lezen admin-auditlogs via service role):
+- `TEACHER_USER_ID` (Supabase Auth user id van het docent-account)
+- `SUPABASE_SERVICE_ROLE_KEY` (ook nodig voor o.a. signed URLs op `/files`)
+
+Zonder deze keys falen `/api/teacher/*` routes (opdrachten, audit-log, Word-export) met een duidelijke fout.
+
 ## 2) Database schema + RLS
 Open je Supabase dashboard → **SQL Editor** → run:
 - [`supabase/schema.sql`](../supabase/schema.sql)
@@ -46,4 +52,9 @@ Open daarna:
 De publieke pagina `/files` gebruikt een server API route om **signed URLs** te maken.
 Daarvoor moet je op Vercel ook zetten:
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+## 6) Docent logboek (admin audit trail)
+Op `/teacher` heeft de tab **Logboek** een read-only weergave van `public.audit_logs` van de **portfolio-eigenaar** (`ADMIN_USER_ID`). De docent zelf kan die rijen niet direct via RLS lezen; de app gebruikt `/api/teacher/audit-logs` en `/api/teacher/audit-logs/export` na controle van de docent-sessie (`TEACHER_USER_ID`) en query met de service role.
+
+Benodigde env vars: `ADMIN_USER_ID`, `TEACHER_USER_ID`, `SUPABASE_SERVICE_ROLE_KEY`, plus de standaard Supabase URL/anon key.
 

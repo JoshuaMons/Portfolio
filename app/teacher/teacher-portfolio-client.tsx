@@ -4,6 +4,8 @@ import * as React from 'react';
 import { ExternalLink } from 'lucide-react';
 
 import type { Project, TeacherAssignment } from '@/types/portfolio';
+import type { AuditLogRow } from '@/lib/teacher-audit-log';
+import { filterLogsByAmsterdamDate, formatLogLine, last30AmsterdamDateKeysDesc } from '@/lib/teacher-audit-log';
 import { Button } from '@/components/ui/button';
 import { SmartLinkPreview } from '@/components/preview/smart-link-preview';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -40,10 +42,25 @@ function toAssignment(a: TeacherAssignment): Item {
   };
 }
 
+function formatPillDate(isoDate: string) {
+  const [y, m, d] = isoDate.split('-');
+  if (!y || !m || !d) return isoDate;
+  return `${d}-${m}-${y}`;
+}
+
 export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
   const [assignments, setAssignments] = React.useState<TeacherAssignment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  const [auditLogs, setAuditLogs] = React.useState<AuditLogRow[]>([]);
+  const [logLoading, setLogLoading] = React.useState(false);
+  const [logError, setLogError] = React.useState<string | null>(null);
+  const [logFetched, setLogFetched] = React.useState(false);
+  const [selectedLogDate, setSelectedLogDate] = React.useState<string | null>(null);
+  const [exporting, setExporting] = React.useState(false);
+
+  const dayKeys = React.useMemo(() => last30AmsterdamDateKeysDesc(), []);
 
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState<Item | null>(null);
@@ -65,6 +82,52 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
     })();
   }, []);
 
+  async function fetchAuditLogs() {
+    setLogLoading(true);
+    setLogError(null);
+    try {
+      const res = await fetch('/api/teacher/audit-logs');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Logboek laden mislukt');
+      setAuditLogs((json?.data as AuditLogRow[]) ?? []);
+      setLogFetched(true);
+    } catch (e: any) {
+      setLogError(e?.message ?? 'Logboek laden mislukt');
+    } finally {
+      setLogLoading(false);
+    }
+  }
+
+  async function exportLogbook() {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/teacher/audit-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: selectedLogDate }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || 'Export mislukt');
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition');
+      let filename = 'logboek.docx';
+      const m = cd?.match(/filename="([^"]+)"/);
+      if (m?.[1]) filename = m[1];
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      window.alert(e?.message ?? 'Export mislukt');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function openItem(item: Item) {
     setActive(item);
     setOpen(true);
@@ -82,6 +145,11 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
 
   const projectItems = projects.map(toItem);
   const assignmentItems = assignments.map(toAssignment);
+  const filteredLogs = React.useMemo(
+    () => filterLogsByAmsterdamDate(auditLogs, selectedLogDate),
+    [auditLogs, selectedLogDate]
+  );
+  const logLines = React.useMemo(() => filteredLogs.map(formatLogLine), [filteredLogs]);
 
   function Grid({ items }: { items: Item[] }) {
     return (
@@ -127,10 +195,17 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
         </p>
       </div>
 
-      <Tabs defaultValue="projects" className="mt-6">
-        <TabsList>
+      <Tabs
+        defaultValue="projects"
+        className="mt-6"
+        onValueChange={(v) => {
+          if (v === 'logbook' && !logFetched) void fetchAuditLogs();
+        }}
+      >
+        <TabsList className="flex flex-wrap gap-1">
           <TabsTrigger value="projects">Projecten</TabsTrigger>
           <TabsTrigger value="assignments">Docent opdrachten</TabsTrigger>
+          <TabsTrigger value="logbook">Logboek</TabsTrigger>
         </TabsList>
 
         <TabsContent value="projects">
@@ -141,6 +216,58 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
           {loading ? <p className="mt-6 text-sm text-muted-foreground">Laden…</p> : null}
           {error ? <p className="mt-6 text-sm text-red-600">{error}</p> : null}
           {!loading && !error ? <Grid items={assignmentItems} /> : null}
+        </TabsContent>
+
+        <TabsContent value="logbook">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button type="button" variant="secondary" size="sm" onClick={() => void exportLogbook()} disabled={exporting || logLoading}>
+              {exporting ? 'Exporteren…' : 'Exporteer Word'}
+            </Button>
+            <p className="text-xs text-muted-foreground">Export volgt de gekozen dagfilter (of alle dagen).</p>
+          </div>
+
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:thin]">
+            <button
+              type="button"
+              onClick={() => setSelectedLogDate(null)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                selectedLogDate === null
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border/60 bg-background/60 text-muted-foreground hover:bg-accent'
+              }`}
+            >
+              Alle dagen
+            </button>
+            {dayKeys.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setSelectedLogDate(k)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selectedLogDate === k
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border/60 bg-background/60 text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                {formatPillDate(k)}
+              </button>
+            ))}
+          </div>
+
+          {logLoading ? <p className="mt-4 text-sm text-muted-foreground">Laden…</p> : null}
+          {logError ? <p className="mt-4 text-sm text-red-600">{logError}</p> : null}
+
+          {!logLoading && !logError ? (
+            <div className="glass-surface mt-4 rounded-2xl p-4 font-mono text-xs leading-relaxed shadow-inner">
+              {logLines.length ? (
+                <pre className="whitespace-pre-wrap break-words">{logLines.join('\n')}</pre>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nog geen logs in deze periode{selectedLogDate ? ` voor ${formatPillDate(selectedLogDate)}` : ''}.
+                </p>
+              )}
+            </div>
+          ) : null}
         </TabsContent>
       </Tabs>
 

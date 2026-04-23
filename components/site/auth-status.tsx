@@ -2,10 +2,16 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Shield, GraduationCap, User } from 'lucide-react';
+import { Shield, GraduationCap, User, ChevronDown } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type ProfileRow = { full_name: string | null };
 type Role = 'anon' | 'admin' | 'teacher' | 'user';
@@ -76,12 +82,37 @@ export function AuthStatus() {
     );
   }
 
-  const homeHref = role === 'teacher' ? '/teacher' : '/admin';
+  if (role === 'teacher') {
+    return (
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" size="sm" className="gap-2">
+              Docent
+              <ChevronDown className="h-4 w-4 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={async (e) => {
+                e.preventDefault();
+                const supabase = createSupabaseBrowserClient();
+                await supabase?.auth.signOut();
+                window.location.assign('/teacher/login');
+              }}
+            >
+              Uitloggen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2">
       <Button asChild variant="outline" size="sm" className="gap-2">
-        <Link href={homeHref}>
+        <Link href="/admin">
           <User className="h-4 w-4" />
           {displayName}
         </Link>
