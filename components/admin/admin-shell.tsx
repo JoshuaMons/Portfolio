@@ -15,6 +15,7 @@ const nav = [
   { href: '/admin/profile', label: 'Profiel', icon: User },
   { href: '/admin/logbook', label: 'Logboek', icon: BookOpen },
   { href: '/admin/projects', label: 'Projecten', icon: PanelsTopLeft },
+  { href: '/admin/teacher-assignments', label: 'Docent opdrachten', icon: BookOpen },
   { href: '/admin/timeline', label: 'Timeline', icon: CalendarClock },
 ];
 

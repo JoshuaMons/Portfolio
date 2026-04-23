@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default function AboutPage() {
   return (
@@ -22,6 +24,29 @@ export default function AboutPage() {
           Vul hier straks je profieltekst, interesses, en skills aan. Dit is bewust licht gehouden zodat jij makkelijk je
           eigen content kunt invullen.
         </p>
+      </div>
+
+      <div className="glass-surface mt-6 rounded-3xl p-6 shadow-card">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">CV (Nederlands)</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Bekijk of download mijn CV.</p>
+          </div>
+          <Button asChild variant="outline" className="gap-2">
+            <a href="/cv-nl.pdf" download>
+              <Download className="h-4 w-4" />
+              Download CV
+            </a>
+          </Button>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/50">
+          <iframe
+            src="/cv-nl.pdf"
+            title="CV (Nederlands)"
+            className="h-[70vh] w-full"
+          />
+        </div>
       </div>
     </div>
   );

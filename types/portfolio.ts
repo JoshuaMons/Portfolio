@@ -24,3 +24,16 @@ export interface Post {
   updated_at: string;
 }
 
+export interface TeacherAssignment {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  url: string | null;
+  tags: string[];
+  thumbnail_url: string | null;
+  status: PublishStatus;
+  created_at: string;
+  updated_at: string;
+}
+

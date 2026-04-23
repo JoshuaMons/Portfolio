@@ -80,6 +80,42 @@ on public.audit_logs
 for delete
 using (auth.uid() = owner_id);
 
+-- Teacher assignments (teacher-only UI, stored in DB)
+create table if not exists public.teacher_assignments (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid(),
+  title text not null,
+  slug text not null unique,
+  description text not null default '',
+  url text,
+  tags text[] not null default '{}',
+  thumbnail_url text,
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists set_teacher_assignments_updated_at on public.teacher_assignments;
+create trigger set_teacher_assignments_updated_at
+before update on public.teacher_assignments
+for each row execute function public.set_updated_at();
+
+alter table public.teacher_assignments enable row level security;
+
+-- Only admin/owner can read/write; teacher view will fetch via server route guarded by middleware.
+drop policy if exists "teacher_assignments_owner_read" on public.teacher_assignments;
+create policy "teacher_assignments_owner_read"
+on public.teacher_assignments
+for select
+using (auth.uid() = owner_id);
+
+drop policy if exists "teacher_assignments_owner_write" on public.teacher_assignments;
+create policy "teacher_assignments_owner_write"
+on public.teacher_assignments
+for all
+using (auth.uid() = owner_id)
+with check (auth.uid() = owner_id);
+
 -- Projects
 create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
