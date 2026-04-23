@@ -21,14 +21,10 @@ export function amsterdamDateKey(iso: string): string {
   }).format(d);
 }
 
-/** Laatste 30 kalenderdagen (Europe/Amsterdam), nieuwste eerst — voor logboek-pills. */
-export function last30AmsterdamDateKeysDesc(): string[] {
-  const raw = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() - i);
-    return amsterdamDateKey(d.toISOString());
-  });
-  return Array.from(new Set(raw)).sort((a, b) => b.localeCompare(a));
+/** Unieke kalenderdagen (Europe/Amsterdam) waarop er logs zijn, nieuwste eerst. */
+export function amsterdamDatesWithLogsDesc(rows: AuditLogRow[]): string[] {
+  const keys = rows.map((r) => amsterdamDateKey(r.created_at));
+  return Array.from(new Set(keys)).sort((a, b) => b.localeCompare(a));
 }
 
 export function filterLogsByAmsterdamDate(rows: AuditLogRow[], date: string | null): AuditLogRow[] {

@@ -317,3 +317,23 @@ for all
 using (auth.uid() = owner_id)
 with check (auth.uid() = owner_id);
 
+-- =========================
+-- Patch: bestanden — waar tonen (website / docentenportaal)
+-- =========================
+alter table public.files add column if not exists show_on_website boolean not null default false;
+alter table public.files add column if not exists show_for_teacher boolean not null default false;
+
+update public.files
+set show_on_website = true
+where visibility = 'public';
+
+drop policy if exists "files_public_read" on public.files;
+create policy "files_public_read"
+on public.files
+for select
+using (
+  auth.uid() = owner_id
+  or visibility = 'public'
+  or show_on_website = true
+);
+

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, RefreshCw, UploadCloud } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -11,7 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
-type Visibility = 'private' | 'public';
+import { revalidateAfterFileChange } from './actions';
+
+type Placement = 'admin' | 'website' | 'teacher' | 'both';
 
 type FileRow = {
   id: string;
@@ -22,7 +25,9 @@ type FileRow = {
   original_name: string;
   mime_type: string | null;
   size_bytes: number | null;
-  visibility: Visibility;
+  visibility: 'private' | 'public';
+  show_on_website?: boolean | null;
+  show_for_teacher?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -32,7 +37,7 @@ type FormState = {
   title: string;
   description: string;
   tagsCsv: string;
-  visibility: Visibility;
+  placement: Placement;
   file?: File | null;
 };
 
@@ -40,7 +45,7 @@ const emptyForm: FormState = {
   title: '',
   description: '',
   tagsCsv: '',
-  visibility: 'private',
+  placement: 'admin',
   file: null,
 };
 
@@ -51,7 +56,39 @@ function tagsFromCsv(csv: string) {
     .filter(Boolean);
 }
 
+function placementFromRow(row: FileRow): Placement {
+  const w = Boolean(row.show_on_website);
+  const t = Boolean(row.show_for_teacher);
+  if (w && t) return 'both';
+  if (w) return 'website';
+  if (t) return 'teacher';
+  return 'admin';
+}
+
+function flagsFromPlacement(p: Placement) {
+  const show_on_website = p === 'website' || p === 'both';
+  const show_for_teacher = p === 'teacher' || p === 'both';
+  const visibility: 'private' | 'public' = show_on_website ? 'public' : 'private';
+  return { show_on_website, show_for_teacher, visibility };
+}
+
+function placementLabel(p: Placement) {
+  switch (p) {
+    case 'admin':
+      return 'Alleen admin';
+    case 'website':
+      return 'Website';
+    case 'teacher':
+      return 'Docent';
+    case 'both':
+      return 'Website + docent';
+    default:
+      return '';
+  }
+}
+
 export default function AdminUploadsPage() {
+  const router = useRouter();
   const [items, setItems] = React.useState<FileRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -75,10 +112,7 @@ export default function AdminUploadsPage() {
     if (!supabase) return;
     setIsLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from('files')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    const { data, error } = await supabase.from('files').select('*').order('updated_at', { ascending: false });
 
     if (error) setError(error.message);
     setItems((data as FileRow[]) ?? []);
@@ -100,7 +134,7 @@ export default function AdminUploadsPage() {
       title: row.title,
       description: row.description,
       tagsCsv: (row.tags ?? []).join(', '),
-      visibility: row.visibility,
+      placement: placementFromRow(row),
       file: null,
     });
     setOpen(true);
@@ -117,8 +151,8 @@ export default function AdminUploadsPage() {
       if (!ownerId) throw new Error('Niet ingelogd.');
 
       const tags = tagsFromCsv(form.tagsCsv);
+      const { show_on_website, show_for_teacher, visibility } = flagsFromPlacement(form.placement);
 
-      // Edit metadata only
       if (form.id) {
         const { data, error } = await supabase
           .from('files')
@@ -126,7 +160,9 @@ export default function AdminUploadsPage() {
             title: form.title.trim(),
             description: form.description ?? '',
             tags,
-            visibility: form.visibility,
+            visibility,
+            show_on_website,
+            show_for_teacher,
           })
           .eq('id', form.id)
           .select()
@@ -136,14 +172,15 @@ export default function AdminUploadsPage() {
           action: 'update',
           entity: 'file',
           entity_id: (data as any)?.id ?? form.id,
-          summary: `File bijgewerkt: ${form.title.trim()} (${form.visibility})`,
+          summary: `File bijgewerkt: ${form.title.trim()} (${form.placement})`,
         });
         setOpen(false);
         await refresh();
+        await revalidateAfterFileChange();
+        router.refresh();
         return;
       }
 
-      // Create + upload required
       if (!form.file) throw new Error('Kies een bestand om te uploaden.');
       const file = form.file;
 
@@ -169,7 +206,9 @@ export default function AdminUploadsPage() {
           original_name: file.name,
           mime_type: file.type || null,
           size_bytes: file.size,
-          visibility: form.visibility,
+          visibility,
+          show_on_website,
+          show_for_teacher,
         })
         .select()
         .single();
@@ -179,11 +218,13 @@ export default function AdminUploadsPage() {
         action: 'create',
         entity: 'file',
         entity_id: (data as any)?.id ?? fileId,
-        summary: `File geüpload: ${form.title.trim() || file.name} (${form.visibility})`,
+        summary: `File geüpload: ${form.title.trim() || file.name} (${form.placement})`,
       });
 
       setOpen(false);
       await refresh();
+      await revalidateAfterFileChange();
+      router.refresh();
     } catch (e: any) {
       setError(e?.message ?? 'Opslaan mislukt.');
     } finally {
@@ -199,7 +240,6 @@ export default function AdminUploadsPage() {
     try {
       const del = await supabase.from('files').delete().eq('id', row.id);
       if (del.error) throw del.error;
-      // try delete from storage too (best effort)
       await supabase.storage.from('uploads').remove([row.storage_path]);
       await writeAuditLog(supabase, {
         action: 'delete',
@@ -208,6 +248,8 @@ export default function AdminUploadsPage() {
         summary: `File verwijderd: ${row.title}`,
       });
       await refresh();
+      await revalidateAfterFileChange();
+      router.refresh();
     } catch (e: any) {
       setError(e?.message ?? 'Verwijderen mislukt.');
     }
@@ -219,7 +261,7 @@ export default function AdminUploadsPage() {
         <div>
           <h1 className="text-xl font-semibold">Uploads</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Upload bestanden naar Supabase Storage. Zet op <span className="font-semibold">public</span> om ze op de site te tonen.
+            Kies waar een bestand zichtbaar is: alleen voor jou, op de publieke bestandenpagina, voor het docentenportaal, of combinaties.
           </p>
         </div>
 
@@ -249,9 +291,20 @@ export default function AdminUploadsPage() {
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{row.title}</p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {row.original_name} · {row.visibility} · {row.mime_type || 'unknown'} ·{' '}
+                    {row.original_name} · {row.mime_type || 'unknown'} ·{' '}
                     {row.size_bytes ? `${Math.round(row.size_bytes / 1024)} KB` : '—'}
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {Boolean(row.show_on_website) ? (
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">Website</span>
+                    ) : null}
+                    {Boolean(row.show_for_teacher) ? (
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium">Docent</span>
+                    ) : null}
+                    {!Boolean(row.show_on_website) && !Boolean(row.show_for_teacher) ? (
+                      <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">Alleen admin</span>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={() => startEdit(row)}>
@@ -296,7 +349,9 @@ export default function AdminUploadsPage() {
                 <input
                   type="file"
                   className="sr-only"
-                  onChange={(e) => setForm((s) => ({ ...s, file: e.target.files?.[0] ?? null, title: s.title || (e.target.files?.[0]?.name ?? '') }))}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, file: e.target.files?.[0] ?? null, title: s.title || (e.target.files?.[0]?.name ?? '') }))
+                  }
                 />
               </label>
             )}
@@ -307,16 +362,19 @@ export default function AdminUploadsPage() {
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="visibility">Zichtbaarheid</Label>
+              <Label htmlFor="placement">Waar tonen?</Label>
               <select
-                id="visibility"
-                value={form.visibility}
-                onChange={(e) => setForm((s) => ({ ...s, visibility: e.target.value as Visibility }))}
+                id="placement"
+                value={form.placement}
+                onChange={(e) => setForm((s) => ({ ...s, placement: e.target.value as Placement }))}
                 className="h-10 rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <option value="private">private</option>
-                <option value="public">public</option>
+                <option value="admin">Alleen admin (privé)</option>
+                <option value="website">Publieke website (/files)</option>
+                <option value="teacher">Alleen docentenportaal</option>
+                <option value="both">Website én docentenportaal</option>
               </select>
+              <p className="text-xs text-muted-foreground">Huidige keuze: {placementLabel(form.placement)}</p>
             </div>
 
             <div className="grid gap-1.5">
@@ -343,4 +401,3 @@ export default function AdminUploadsPage() {
     </div>
   );
 }
-

@@ -16,8 +16,10 @@ export async function GET() {
 
     const { data: rows, error } = await supabase
       .from('files')
-      .select('id,title,description,tags,storage_path,original_name,mime_type,size_bytes,visibility,created_at,updated_at')
-      .eq('visibility', 'public')
+      .select(
+        'id,title,description,tags,storage_path,original_name,mime_type,size_bytes,visibility,show_on_website,show_for_teacher,created_at,updated_at'
+      )
+      .or('show_on_website.eq.true,visibility.eq.public')
       .order('updated_at', { ascending: false });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
