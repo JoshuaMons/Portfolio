@@ -8,6 +8,7 @@ import { BookOpen, CalendarClock, LayoutDashboard, LogOut, PanelsTopLeft, User }
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { SiteLogo } from '@/components/site/site-logo';
 
 const nav = [
   { href: '/admin', label: 'Overzicht', icon: LayoutDashboard },
@@ -33,7 +34,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
         <aside className="glass-surface h-fit rounded-3xl p-4 shadow-card">
           <div className="flex items-center justify-between gap-2 px-2 py-2">
-            <p className="text-sm font-semibold">Admin</p>
+            <div className="leading-tight">
+              <SiteLogo />
+              <p className="mt-1 text-xs text-muted-foreground">Admin portal</p>
+            </div>
             <Button variant="ghost" size="icon" onClick={signOut} title="Uitloggen">
               <LogOut className="h-4 w-4" />
             </Button>

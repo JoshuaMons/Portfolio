@@ -111,5 +111,17 @@ body {
       radial-gradient(circle at 80% 30%, rgba(var(--shader-b), var(--shader-b-alpha)), transparent 35%),
       radial-gradient(circle at 50% 85%, rgba(var(--shader-c), var(--shader-c-alpha)), transparent 45%),
       linear-gradient(var(--shader-angle), hsl(var(--background)), hsl(var(--background)));
+    background-size: 200% 200%;
+    animation: shaderMove 16s ease-in-out infinite;
   }
+}
+
+@keyframes shaderMove {
+  0% { background-position: 0% 20%; }
+  50% { background-position: 100% 80%; }
+  100% { background-position: 0% 20%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-gradient { animation: none; }
 }
