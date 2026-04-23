@@ -1,8 +1,8 @@
 import AdmZip from 'adm-zip';
 import { createClient } from '@supabase/supabase-js';
-import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 
+import { revalidatePortfolioContent } from '@/app/admin/revalidate-content';
 import { guessMimeFromPath } from '@/lib/mini-project-mime';
 import { getAuthedUserId, isAdminUser } from '@/lib/session-auth';
 
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
 
     const miniId = crypto.randomUUID();
     const prefix = `owner/${uid}/mini/${miniId}/`;
+    const uploadedPaths: string[] = [];
 
     for (const ent of entries) {
       const name = ent.entryName.replace(/\\/g, '/');
@@ -70,11 +71,16 @@ export async function POST(req: Request) {
       const rel = name.slice(webRoot.length).replace(/^\/+/, '');
       if (!rel || rel.includes('..')) continue;
       const body = ent.getData();
-      const up = await svc.storage.from('uploads').upload(`${prefix}${rel}`, body, {
+      const fullPath = `${prefix}${rel}`.replace(/\/{2,}/g, '/');
+      const up = await svc.storage.from('uploads').upload(fullPath, body, {
         contentType: guessMimeFromPath(rel),
         upsert: true,
       });
-      if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+      if (up.error) {
+        if (uploadedPaths.length) await svc.storage.from('uploads').remove(uploadedPaths);
+        return NextResponse.json({ error: up.error.message }, { status: 500 });
+      }
+      uploadedPaths.push(fullPath);
     }
 
     const { data, error } = await svc
@@ -92,11 +98,34 @@ export async function POST(req: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    revalidatePath('/teacher');
-    revalidatePath('/projects');
-    revalidatePath('/admin/projects');
-    revalidatePath('/admin/uploads');
-    revalidatePath('/admin/content');
+    const indexRel = normalizedIndex.slice(webRoot.length).replace(/^\/+/, '');
+    const indexStoragePath = `${prefix}${indexRel}`.replace(/\/{2,}/g, '/');
+    const fileId = crypto.randomUUID();
+    const visibility = show_on_website ? 'public' : 'private';
+
+    const { error: fileErr } = await svc.from('files').insert({
+      id: fileId,
+      owner_id: uid,
+      title,
+      description: 'Mini-project (ZIP) — gekoppeld aan de mini-site proxy.',
+      tags: ['mini-project'],
+      storage_path: indexStoragePath,
+      original_name: file.name,
+      mime_type: 'application/x-mini-project',
+      size_bytes: buf.length,
+      visibility,
+      show_on_website,
+      show_for_teacher,
+      mini_project_id: miniId,
+    });
+
+    if (fileErr) {
+      await svc.from('mini_projects').delete().eq('id', miniId);
+      if (uploadedPaths.length) await svc.storage.from('uploads').remove(uploadedPaths);
+      return NextResponse.json({ error: fileErr.message }, { status: 500 });
+    }
+
+    await revalidatePortfolioContent();
 
     return NextResponse.json({ data });
   } catch (e: any) {

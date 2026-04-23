@@ -27,6 +27,11 @@ Als je deze error ziet, run dan opnieuw `supabase/schema.sql`.
 Het schema bevat nu een **idempotente** patch:
 - `alter table public.profiles add column if not exists contact_email text;`
 
+### Mini-ZIP’s in de admin Uploads-lijst + docent-koppelingen
+Na een schema-update moet je opnieuw `supabase/schema.sql` draaien in de SQL Editor. Het schema voegt (idempotent) toe:
+- **`files.mini_project_id`** — verwijst naar `mini_projects(id)`; bij import van een mini-ZIP wordt naast `mini_projects` ook een **`files`**-rij aangemaakt zodat mini’s in dezelfde admin-lijst staan als gewone uploads. Verwijderen van zo’n rij ruimt ook de mini + storage op (best effort).
+- **`teacher_assignments.attached_file_id`** — optionele FK naar `files(id)` voor een gekoppeld docent-bestand in het admin formulier.
+
 ### Storage: bucket `uploads`
 Voor file uploads heb je een Supabase Storage bucket nodig:
 - Bucket naam: `uploads`

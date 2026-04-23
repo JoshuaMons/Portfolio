@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FolderArchive, Plus, RefreshCw, UploadCloud } from 'lucide-react';
 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { writeAuditLog } from '@/lib/audit-log';
+import { deleteFileOrMiniBundle } from '@/app/admin/delete-upload-actions';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ type FileRow = {
   visibility: 'private' | 'public';
   show_on_website?: boolean | null;
   show_for_teacher?: boolean | null;
+  mini_project_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -87,8 +89,10 @@ function placementLabel(p: Placement) {
   }
 }
 
-export default function AdminUploadsPage() {
+function AdminUploadsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get('highlight');
   const [items, setItems] = React.useState<FileRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -128,6 +132,12 @@ export default function AdminUploadsPage() {
   React.useEffect(() => {
     refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    if (!highlightId) return;
+    const el = document.getElementById(`upload-row-${highlightId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightId, items]);
 
   function startCreate() {
     setForm(emptyForm);
@@ -269,18 +279,29 @@ export default function AdminUploadsPage() {
   async function remove(row: FileRow) {
     const supabase = supabaseRef.current;
     if (!supabase) return;
-    if (!confirm('Bestand verwijderen?')) return;
+    if (!confirm(row.mini_project_id ? 'Mini-project en registratie verwijderen?' : 'Bestand verwijderen?')) return;
     setError(null);
     try {
-      const del = await supabase.from('files').delete().eq('id', row.id);
-      if (del.error) throw del.error;
-      await supabase.storage.from('uploads').remove([row.storage_path]);
-      await writeAuditLog(supabase, {
-        action: 'delete',
-        entity: 'file',
-        entity_id: row.id,
-        summary: `File verwijderd: ${row.title}`,
-      });
+      if (row.mini_project_id) {
+        const res = await deleteFileOrMiniBundle(row.id);
+        if (!res.ok) throw new Error(res.error);
+        await writeAuditLog(supabase, {
+          action: 'delete',
+          entity: 'file',
+          entity_id: row.id,
+          summary: `Mini-project verwijderd: ${row.title}`,
+        });
+      } else {
+        const del = await supabase.from('files').delete().eq('id', row.id);
+        if (del.error) throw del.error;
+        await supabase.storage.from('uploads').remove([row.storage_path]);
+        await writeAuditLog(supabase, {
+          action: 'delete',
+          entity: 'file',
+          entity_id: row.id,
+          summary: `File verwijderd: ${row.title}`,
+        });
+      }
       await refresh();
       await revalidateAfterFileChange();
       router.refresh();
@@ -320,7 +341,11 @@ export default function AdminUploadsPage() {
           <p className="text-sm text-muted-foreground">Nog geen uploads.</p>
         ) : (
           items.map((row) => (
-            <div key={row.id} className="rounded-2xl border border-border/60 bg-background/50 p-4">
+            <div
+              key={row.id}
+              id={`upload-row-${row.id}`}
+              className={`rounded-2xl border border-border/60 bg-background/50 p-4 ${highlightId === row.id ? 'ring-2 ring-primary/50' : ''}`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{row.title}</p>
@@ -329,6 +354,9 @@ export default function AdminUploadsPage() {
                     {row.size_bytes ? `${Math.round(row.size_bytes / 1024)} KB` : '—'}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
+                    {row.mini_project_id ? (
+                      <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[10px] font-medium text-primary">Mini-ZIP</span>
+                    ) : null}
                     {Boolean(row.show_on_website) ? (
                       <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">Website</span>
                     ) : null}
@@ -472,5 +500,13 @@ export default function AdminUploadsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function AdminUploadsPage() {
+  return (
+    <React.Suspense fallback={<p className="p-6 text-sm text-muted-foreground">Laden…</p>}>
+      <AdminUploadsPageContent />
+    </React.Suspense>
   );
 }

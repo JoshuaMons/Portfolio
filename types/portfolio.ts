@@ -35,6 +35,8 @@ export interface TeacherAssignment {
   tags: string[];
   thumbnail_url: string | null;
   status: PublishStatus;
+  /** Optioneel gekoppeld docent-bestand uit `files`. */
+  attached_file_id?: string | null;
   created_at: string;
   updated_at: string;
 }

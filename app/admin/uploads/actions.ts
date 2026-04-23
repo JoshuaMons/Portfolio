@@ -1,11 +1,8 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePortfolioContent } from '@/app/admin/revalidate-content';
 
-/** Na upload/wijziging: publieke /files en docentenportaal opnieuw laten renderen. */
+/** Na upload/wijziging: home, projecten, /files, docentenportaal en admin-lijsten opnieuw laten renderen. */
 export async function revalidateAfterFileChange() {
-  revalidatePath('/files');
-  revalidatePath('/teacher');
-  revalidatePath('/admin/projects');
-  revalidatePath('/admin/content');
+  await revalidatePortfolioContent();
 }

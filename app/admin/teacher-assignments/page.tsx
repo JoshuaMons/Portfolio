@@ -1,9 +1,12 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus, RefreshCw } from 'lucide-react';
 
 import type { TeacherAssignment, PublishStatus } from '@/types/portfolio';
+import { revalidatePortfolioContent } from '@/app/admin/revalidate-content';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/slug';
 import { writeAuditLog } from '@/lib/audit-log';
@@ -12,6 +15,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+
+type DocentFileRow = {
+  id: string;
+  title: string;
+  updated_at: string;
+  mime_type: string | null;
+  original_name: string;
+};
 
 type FormState = {
   id?: string;
@@ -22,6 +33,7 @@ type FormState = {
   tagsCsv: string;
   status: PublishStatus;
   thumbnail_url: string;
+  attached_file_id: string;
 };
 
 const emptyForm: FormState = {
@@ -32,6 +44,7 @@ const emptyForm: FormState = {
   tagsCsv: '',
   status: 'draft',
   thumbnail_url: '',
+  attached_file_id: '',
 };
 
 function tagsFromCsv(csv: string) {
@@ -42,7 +55,9 @@ function tagsFromCsv(csv: string) {
 }
 
 export default function AdminTeacherAssignmentsPage() {
+  const router = useRouter();
   const [items, setItems] = React.useState<TeacherAssignment[]>([]);
+  const [teacherFiles, setTeacherFiles] = React.useState<DocentFileRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -65,13 +80,14 @@ export default function AdminTeacherAssignmentsPage() {
     if (!supabase) return;
     setIsLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from('teacher_assignments')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    const [aRes, fRes] = await Promise.all([
+      supabase.from('teacher_assignments').select('*').order('updated_at', { ascending: false }),
+      supabase.from('files').select('id,title,updated_at,mime_type,original_name').eq('show_for_teacher', true).order('updated_at', { ascending: false }),
+    ]);
 
-    if (error) setError(error.message);
-    setItems((data as TeacherAssignment[]) ?? []);
+    if (aRes.error) setError(aRes.error.message);
+    setItems((aRes.data as TeacherAssignment[]) ?? []);
+    setTeacherFiles(fRes.error ? [] : ((fRes.data as DocentFileRow[]) ?? []));
     setIsLoading(false);
   }, []);
 
@@ -94,6 +110,7 @@ export default function AdminTeacherAssignmentsPage() {
       tagsCsv: (p.tags ?? []).join(', '),
       status: p.status,
       thumbnail_url: p.thumbnail_url ?? '',
+      attached_file_id: p.attached_file_id ?? '',
     });
     setOpen(true);
   }
@@ -113,6 +130,7 @@ export default function AdminTeacherAssignmentsPage() {
         tags: tagsFromCsv(form.tagsCsv),
         status: form.status,
         thumbnail_url: form.thumbnail_url.trim() || null,
+        attached_file_id: form.attached_file_id.trim() || null,
       };
 
       const { data, error } = await supabase.from('teacher_assignments').upsert(payload).select().single();
@@ -125,6 +143,8 @@ export default function AdminTeacherAssignmentsPage() {
       });
       setOpen(false);
       await refresh();
+      await revalidatePortfolioContent();
+      router.refresh();
     } catch (e: any) {
       setError(e?.message ?? 'Opslaan mislukt.');
     } finally {
@@ -143,6 +163,8 @@ export default function AdminTeacherAssignmentsPage() {
     }
     await writeAuditLog(supabase, { action: 'delete', entity: 'teacher_assignment', entity_id: id, summary: `Verwijderd docent opdracht (${id})` });
     await refresh();
+    await revalidatePortfolioContent();
+    router.refresh();
   }
 
   return (
@@ -150,7 +172,9 @@ export default function AdminTeacherAssignmentsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Docent opdrachten</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Deze verschijnen in de docenten-view tab.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Opdrachten voor het docentenportaal. Hieronder ook bestanden die voor docenten zijn gezet (via Uploads).
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -167,31 +191,63 @@ export default function AdminTeacherAssignmentsPage() {
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
-      <div className="mt-6 grid gap-3">
-        {isLoading ? (
-          <div className="text-sm text-muted-foreground">Laden…</div>
-        ) : items.length === 0 ? (
-          <div className="text-sm text-muted-foreground">Nog geen opdrachten.</div>
-        ) : (
-          items.map((p) => (
-            <div key={p.id} className="rounded-2xl border border-border/60 bg-background/50 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{p.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">/{p.slug} · {p.status}</p>
+      <div className="mt-8">
+        <h2 className="text-base font-semibold">Gedeelde bestanden (docent)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Bestanden met vlag “docent” uit <Link href="/admin/uploads" className="font-medium text-primary underline-offset-4 hover:underline">Uploads</Link>. Na upload: Refresh hierboven of wacht op automatische verversing.
+        </p>
+        <div className="mt-3 grid gap-2">
+          {teacherFiles.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nog geen docent-bestanden.</p>
+          ) : (
+            teacherFiles.map((f) => (
+              <div key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/60 bg-background/50 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{f.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {f.original_name} · {f.mime_type || '—'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => startEdit(p)}>
-                    Bewerken
-                  </Button>
-                  <Button variant="ghost" onClick={() => remove(p.id)}>
-                    Verwijderen
-                  </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/admin/uploads?highlight=${f.id}`}>Open in Uploads</Link>
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-base font-semibold">Opdrachten</h2>
+        <div className="mt-3 grid gap-3">
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Laden…</div>
+          ) : items.length === 0 ? (
+            <div className="text-sm text-muted-foreground">Nog geen opdrachten.</div>
+          ) : (
+            items.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-border/60 bg-background/50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{p.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      /{p.slug} · {p.status}
+                      {p.attached_file_id ? ' · bestand gekoppeld' : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => startEdit(p)}>
+                      Bewerken
+                    </Button>
+                    <Button variant="ghost" onClick={() => remove(p.id)}>
+                      Verwijderen
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -201,7 +257,7 @@ export default function AdminTeacherAssignmentsPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>{form.id ? 'Opdracht bewerken' : 'Nieuwe opdracht'}</DialogTitle>
-            <DialogDescription>URL wordt gebruikt voor modal preview.</DialogDescription>
+            <DialogDescription>URL wordt gebruikt voor modal preview. Optioneel: koppel een docent-bestand.</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">
@@ -225,6 +281,24 @@ export default function AdminTeacherAssignmentsPage() {
             <div className="grid gap-1.5">
               <Label htmlFor="url">Website URL</Label>
               <Input id="url" value={form.url} onChange={(e) => setForm((s) => ({ ...s, url: e.target.value }))} placeholder="https://…" />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="attached_file_id">Gekoppeld docent-bestand (optioneel)</Label>
+              <select
+                id="attached_file_id"
+                value={form.attached_file_id}
+                onChange={(e) => setForm((s) => ({ ...s, attached_file_id: e.target.value }))}
+                className="h-10 rounded-xl border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="">— geen —</option>
+                {teacherFiles.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.title}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">Alleen bestanden met docent-zichtbaarheid. Upload eerst via Uploads.</p>
             </div>
 
             <div className="grid gap-1.5">
@@ -269,4 +343,3 @@ export default function AdminTeacherAssignmentsPage() {
     </div>
   );
 }
-

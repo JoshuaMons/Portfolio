@@ -1,9 +1,11 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, RefreshCw } from 'lucide-react';
 
 import type { Project, PublishStatus } from '@/types/portfolio';
+import { revalidatePortfolioContent } from '@/app/admin/revalidate-content';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/slug';
 import { writeAuditLog } from '@/lib/audit-log';
@@ -46,6 +48,7 @@ function tagsFromCsv(csv: string) {
 }
 
 export default function AdminProjectsPage() {
+  const router = useRouter();
   const [items, setItems] = React.useState<Project[]>([]);
   const [minis, setMinis] = React.useState<MiniRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -133,6 +136,8 @@ export default function AdminProjectsPage() {
       });
       setOpen(false);
       await refresh();
+      await revalidatePortfolioContent();
+      router.refresh();
     } catch (e: any) {
       setError(e?.message ?? 'Opslaan mislukt.');
     } finally {
@@ -151,6 +156,8 @@ export default function AdminProjectsPage() {
     }
     await writeAuditLog(supabase, { action: 'delete', entity: 'project', entity_id: id, summary: `Verwijderd project (${id})` });
     await refresh();
+    await revalidatePortfolioContent();
+    router.refresh();
   }
 
   return (

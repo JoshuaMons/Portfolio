@@ -374,3 +374,12 @@ using (show_on_website = true);
 
 alter table public.projects add column if not exists mini_project_token uuid null;
 
+-- =========================
+-- Patch: files ↔ mini_projects, opdrachten ↔ bestanden
+-- =========================
+alter table public.files add column if not exists mini_project_id uuid references public.mini_projects (id) on delete set null;
+
+create index if not exists files_mini_project_id_idx on public.files (mini_project_id);
+
+alter table public.teacher_assignments add column if not exists attached_file_id uuid references public.files (id) on delete set null;
+
