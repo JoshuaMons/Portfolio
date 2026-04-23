@@ -88,6 +88,67 @@ for all
 using (auth.uid() = owner_id)
 with check (auth.uid() = owner_id);
 
+-- Supabase Storage policies for bucket `uploads`
+-- Paths we use:
+-- - owner/<uid>/<file_id>/<original_name>
+-- - avatars/<uid>/<uuid>.<ext>
+--
+-- These policies allow authenticated users to manage only their own objects.
+drop policy if exists "uploads_owner_select" on storage.objects;
+create policy "uploads_owner_select"
+on storage.objects
+for select
+using (
+  bucket_id = 'uploads'
+  and (
+    (split_part(name, '/', 1) = 'owner' and split_part(name, '/', 2) = auth.uid()::text)
+    or (split_part(name, '/', 1) = 'avatars' and split_part(name, '/', 2) = auth.uid()::text)
+  )
+);
+
+drop policy if exists "uploads_owner_insert" on storage.objects;
+create policy "uploads_owner_insert"
+on storage.objects
+for insert
+with check (
+  bucket_id = 'uploads'
+  and (
+    (split_part(name, '/', 1) = 'owner' and split_part(name, '/', 2) = auth.uid()::text)
+    or (split_part(name, '/', 1) = 'avatars' and split_part(name, '/', 2) = auth.uid()::text)
+  )
+);
+
+drop policy if exists "uploads_owner_update" on storage.objects;
+create policy "uploads_owner_update"
+on storage.objects
+for update
+using (
+  bucket_id = 'uploads'
+  and (
+    (split_part(name, '/', 1) = 'owner' and split_part(name, '/', 2) = auth.uid()::text)
+    or (split_part(name, '/', 1) = 'avatars' and split_part(name, '/', 2) = auth.uid()::text)
+  )
+)
+with check (
+  bucket_id = 'uploads'
+  and (
+    (split_part(name, '/', 1) = 'owner' and split_part(name, '/', 2) = auth.uid()::text)
+    or (split_part(name, '/', 1) = 'avatars' and split_part(name, '/', 2) = auth.uid()::text)
+  )
+);
+
+drop policy if exists "uploads_owner_delete" on storage.objects;
+create policy "uploads_owner_delete"
+on storage.objects
+for delete
+using (
+  bucket_id = 'uploads'
+  and (
+    (split_part(name, '/', 1) = 'owner' and split_part(name, '/', 2) = auth.uid()::text)
+    or (split_part(name, '/', 1) = 'avatars' and split_part(name, '/', 2) = auth.uid()::text)
+  )
+);
+
 -- Automatic audit log (admin-only)
 create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
