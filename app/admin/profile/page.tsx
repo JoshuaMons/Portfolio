@@ -27,6 +27,8 @@ export default function AdminProfilePage() {
   const [profile, setProfile] = React.useState<Profile | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
+  const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = React.useState(false);
 
   const supabaseRef = React.useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
 
@@ -70,8 +72,54 @@ export default function AdminProfilePage() {
           linkedin_url: null,
         }
       );
+
+      const rawAvatar = (data as Profile | null)?.avatar_url ?? null;
+      if (rawAvatar) {
+        if (rawAvatar.startsWith('http')) {
+          setAvatarPreview(rawAvatar);
+        } else {
+          const signed = await supabase.storage.from('uploads').createSignedUrl(rawAvatar, 60 * 10);
+          setAvatarPreview(signed.data?.signedUrl ?? null);
+        }
+      } else {
+        setAvatarPreview(null);
+      }
     })();
   }, []);
+
+  async function uploadAvatar(file: File) {
+    const supabase = supabaseRef.current;
+    if (!supabase || !profile) return;
+    setAvatarUploading(true);
+    setError(null);
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const safeExt = ext.replace(/[^\w]+/g, '');
+      const objectPath = `avatars/${profile.id}/${crypto.randomUUID()}.${safeExt}`;
+
+      const up = await supabase.storage.from('uploads').upload(objectPath, file, {
+        contentType: file.type || undefined,
+        upsert: true,
+      });
+      if (up.error) throw up.error;
+
+      const signed = await supabase.storage.from('uploads').createSignedUrl(objectPath, 60 * 10);
+      setAvatarPreview(signed.data?.signedUrl ?? null);
+
+      setProfile((p) => (p ? { ...p, avatar_url: objectPath } : p));
+
+      await writeAuditLog(supabase, {
+        action: 'update',
+        entity: 'profile',
+        entity_id: profile.id,
+        summary: 'Profielfoto geüpload',
+      });
+    } catch (e: any) {
+      setError(e?.message ?? 'Upload mislukt.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
 
   async function save() {
     const supabase = supabaseRef.current;
@@ -128,6 +176,39 @@ export default function AdminProfilePage() {
         <p className="mt-6 text-sm text-muted-foreground">Laden…</p>
       ) : (
         <div className="glass-surface mt-6 grid gap-4 rounded-3xl p-6 shadow-card">
+          <div className="grid gap-2">
+            <Label>Profielfoto</Label>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="h-20 w-20 overflow-hidden rounded-2xl border border-border/60 bg-background/50">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Avatar preview" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Geen</div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-border/60 bg-background/60 px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent">
+                  {avatarUploading ? 'Uploaden…' : 'Upload profielfoto'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={avatarUploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadAvatar(f);
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Wordt opgeslagen in Supabase Storage. Klik daarna op <span className="font-semibold">Opslaan</span> om te bewaren in je profiel.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid gap-1.5">
             <Label htmlFor="full_name">Naam</Label>
             <Input

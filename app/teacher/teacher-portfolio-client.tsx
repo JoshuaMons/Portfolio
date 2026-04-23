@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type Item = {
-  kind: 'project' | 'assignment';
+  kind: 'evidence' | 'project' | 'assignment';
   title: string;
   description: string;
   url: string | null;
@@ -83,6 +83,16 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
     setOpen(true);
   }
 
+  const evidenceItem: Item = {
+    kind: 'evidence',
+    title: 'Projectdocumentatie (bewijs)',
+    description:
+      'Samenvatting van prompts → wat er gebouwd is, met verwijzingen naar code en testplan. Print / Save as PDF.',
+    url: '/teacher/evidence',
+    tags: ['bewijs', 'documentatie', 'samenvatting'],
+    thumbnail_url: null,
+  };
+
   const projectItems = projects.map(toItem);
   const assignmentItems = assignments.map(toAssignment);
 
@@ -137,7 +147,7 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
         </TabsList>
 
         <TabsContent value="projects">
-          <Grid items={projectItems} />
+          <Grid items={[evidenceItem, ...projectItems]} />
         </TabsContent>
 
         <TabsContent value="assignments">
@@ -177,6 +187,11 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
                             Open in nieuw tabblad
                           </a>
                         </Button>
+                        {active.kind === 'evidence' ? (
+                          <Button variant="outline" size="sm" onClick={() => window.open(active.url!, '_blank', 'noopener,noreferrer')}>
+                            Print / Save as PDF
+                          </Button>
+                        ) : null}
                         <Button variant="ghost" size="sm" onClick={() => setForceFallback((v) => !v)}>
                           <Eye className="h-4 w-4" />
                           {canIframe ? 'Gebruik thumbnail' : 'Probeer iframe'}
@@ -184,16 +199,16 @@ export function TeacherPortfolioClient({ projects }: { projects: Project[] }) {
                       </div>
                     </div>
 
-                    {canIframe ? (
+                    {active.kind === 'evidence' || canIframe ? (
                       <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/50">
-                        {!iframeLoaded && (
+                        {active.kind !== 'evidence' && !iframeLoaded ? (
                           <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 text-xs text-muted-foreground">
                             <span>Preview laden…</span>
                             <Button variant="outline" size="sm" onClick={() => setForceFallback(true)}>
                               Thumbnail tonen
                             </Button>
                           </div>
-                        )}
+                        ) : null}
                         <iframe
                           src={active.url}
                           title={`Preview: ${active.title}`}
