@@ -14,11 +14,13 @@ export function ProjectsClient({
   initialPublicFiles,
   supabaseConfigured,
   filesFetchFailed,
+  projectsFetchFailed,
 }: {
   initialProjects: Project[];
   initialPublicFiles: PublicFile[];
   supabaseConfigured: boolean;
   filesFetchFailed?: boolean;
+  projectsFetchFailed?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState<Project | null>(null);
@@ -27,9 +29,15 @@ export function ProjectsClient({
     <>
       {!supabaseConfigured && (
         <p className="mt-6 rounded-2xl border border-border/60 bg-background/50 p-4 text-sm text-muted-foreground">
-          Supabase is nog niet geconfigureerd. Voeg env vars toe (zie `.env.example`).
+          Host/URL onbekend of API niet bereikbaar. Controleer deployment en env vars.
         </p>
       )}
+      {projectsFetchFailed ? (
+        <p className="mt-6 rounded-2xl border border-border/60 bg-background/50 p-4 text-sm text-muted-foreground">
+          Kon projecten niet laden. Controleer `SUPABASE_SERVICE_ROLE_KEY` en of de database-kolommen `show_on_website` /
+          `show_for_teacher` bestaan (run `supabase/schema.sql`).
+        </p>
+      ) : null}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {initialProjects.map((p) => (

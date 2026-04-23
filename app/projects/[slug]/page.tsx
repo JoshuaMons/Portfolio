@@ -13,7 +13,13 @@ export const revalidate = 0;
 export default async function ProjectDetailPage({ params }: { params: { slug: string } }) {
   const supabase = createSupabasePublicClient();
   const { data } = supabase
-    ? await supabase.from('projects').select('*').eq('slug', params.slug).eq('status', 'published').maybeSingle()
+    ? await supabase
+        .from('projects')
+        .select('*')
+        .eq('slug', params.slug)
+        .eq('status', 'published')
+        .eq('show_on_website', true)
+        .maybeSingle()
     : { data: null };
 
   const project = data as Project | null;

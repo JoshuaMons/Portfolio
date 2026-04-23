@@ -82,7 +82,15 @@ const evidenceItem: Item = {
   updated_at: '',
 };
 
-export function TeacherProjectsClient({ projects }: { projects: Project[] }) {
+export function TeacherProjectsClient({
+  projects,
+  teacherProjectsApiOk,
+  baseUrlConfigured,
+}: {
+  projects: Project[];
+  teacherProjectsApiOk: boolean | null;
+  baseUrlConfigured: boolean;
+}) {
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState<Item | null>(null);
   const [files, setFiles] = React.useState<TeacherFileRow[]>([]);
@@ -145,6 +153,13 @@ export function TeacherProjectsClient({ projects }: { projects: Project[] }) {
         </p>
         {filesError ? <p className="mt-2 text-xs text-destructive">{filesError}</p> : null}
         {filesLoading ? <p className="mt-2 text-xs text-muted-foreground">Bestanden laden…</p> : null}
+        {!baseUrlConfigured ? (
+          <p className="mt-2 text-xs text-destructive">Host onbekend; projecten niet geladen.</p>
+        ) : teacherProjectsApiOk === false ? (
+          <p className="mt-2 text-xs text-destructive">
+            Projecten-API mislukt (sessie of kolommen `show_on_website` / `show_for_teacher`). Vernieuw of run schema-SQL.
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

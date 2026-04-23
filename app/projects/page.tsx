@@ -2,28 +2,26 @@ import { headers } from 'next/headers';
 
 import type { Project } from '@/types/portfolio';
 import type { PublicFile } from '@/app/files/files-client';
-import { createSupabasePublicClient } from '@/lib/supabase/public';
 import { ProjectsClient } from './projects-client';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ProjectsPage() {
-  const supabase = createSupabasePublicClient();
-
   const h = headers();
   const proto = h.get('x-forwarded-proto') ?? 'http';
   const host = h.get('x-forwarded-host') ?? h.get('host');
   const baseUrl = host ? `${proto}://${host}` : '';
 
-  const [{ data }, filesRes] = await Promise.all([
-    supabase
-      ? supabase.from('projects').select('*').eq('status', 'published').order('updated_at', { ascending: false })
-      : Promise.resolve({ data: null as Project[] | null }),
+  const [projRes, filesRes] = await Promise.all([
+    baseUrl
+      ? fetch(`${baseUrl}/api/projects/public?limit=120&offset=0`, { cache: 'no-store' }).catch(() => null)
+      : Promise.resolve(null),
     baseUrl ? fetch(`${baseUrl}/api/files/public`, { cache: 'no-store' }).catch(() => null) : Promise.resolve(null),
   ]);
 
-  const projects = (data as Project[] | null) ?? [];
+  const projJson = projRes?.ok ? await projRes.json().catch(() => ({})) : {};
+  const projects = (projJson?.data as Project[] | undefined) ?? [];
   const filesJson = filesRes?.ok ? await filesRes.json().catch(() => ({})) : {};
   const publicFiles = (filesJson?.data as PublicFile[] | undefined) ?? [];
 
@@ -41,8 +39,9 @@ export default async function ProjectsPage() {
       <ProjectsClient
         initialProjects={projects}
         initialPublicFiles={publicFiles}
-        supabaseConfigured={Boolean(supabase)}
+        supabaseConfigured={Boolean(baseUrl)}
         filesFetchFailed={Boolean(baseUrl && filesRes && !filesRes.ok)}
+        projectsFetchFailed={Boolean(baseUrl && projRes && !projRes.ok)}
       />
     </div>
   );

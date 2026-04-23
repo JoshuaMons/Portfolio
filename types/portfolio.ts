@@ -9,6 +9,10 @@ export interface Project {
   tags: string[];
   thumbnail_url: string | null;
   status: PublishStatus;
+  /** Publiek op /projects en home (gasten). */
+  show_on_website?: boolean | null;
+  /** Extra zichtbaar in docentenportaal (naast gast-zichtbare). */
+  show_for_teacher?: boolean | null;
   /** Optioneel: geüploade mini-site (ZIP); assets via `/api/mini-project/{token}/…`. */
   mini_project_token?: string | null;
   created_at: string;

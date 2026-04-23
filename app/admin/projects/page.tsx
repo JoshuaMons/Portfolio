@@ -3,9 +3,10 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Eye, Loader2, Plus, RefreshCw } from 'lucide-react';
 
 import type { Project, PublishStatus } from '@/types/portfolio';
+import { ProjectModalBody } from '@/components/portfolio/project-modal-body';
 import { revalidatePortfolioContent } from '@/app/admin/revalidate-content';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/slug';
@@ -32,6 +33,8 @@ type FormState = {
   mini_project_token: string;
   linkedFileId: string;
   uploadFile: File | null;
+  show_on_website: boolean;
+  show_for_teacher: boolean;
 };
 
 const emptyForm: FormState = {
@@ -45,6 +48,8 @@ const emptyForm: FormState = {
   mini_project_token: '',
   linkedFileId: '',
   uploadFile: null,
+  show_on_website: false,
+  show_for_teacher: false,
 };
 
 function tagsFromCsv(csv: string) {
@@ -70,6 +75,29 @@ export default function AdminProjectsPage() {
   const [open, setOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState<FormState>(emptyForm);
+
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewProject, setPreviewProject] = React.useState<Project | null>(null);
+  const [previewLoading, setPreviewLoading] = React.useState(false);
+  const [previewError, setPreviewError] = React.useState<string | null>(null);
+
+  async function openPreview(id: string) {
+    setPreviewOpen(true);
+    setPreviewProject(null);
+    setPreviewError(null);
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/admin/projects/preview/${id}`);
+      const json = (await res.json().catch(() => ({}))) as { project?: Project; error?: string };
+      if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : 'Preview laden mislukt');
+      if (!json.project) throw new Error('Geen data');
+      setPreviewProject(json.project);
+    } catch (e) {
+      setPreviewError(e instanceof Error ? e.message : 'Fout');
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
 
   const supabaseRef = React.useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
 
@@ -122,6 +150,8 @@ export default function AdminProjectsPage() {
       mini_project_token: p.mini_project_token ?? '',
       linkedFileId: streamId,
       uploadFile: null,
+      show_on_website: Boolean(p.show_on_website),
+      show_for_teacher: Boolean(p.show_for_teacher),
     });
     setOpen(true);
   }
@@ -236,6 +266,8 @@ export default function AdminProjectsPage() {
         status: form.status,
         thumbnail_url: form.thumbnail_url.trim() || null,
         mini_project_token: form.mini_project_token.trim() || null,
+        show_on_website: form.show_on_website,
+        show_for_teacher: form.show_for_teacher,
       };
       const payload = form.id ? { ...basePayload, id: form.id } : basePayload;
 
@@ -323,9 +355,15 @@ export default function AdminProjectsPage() {
                   <p className="mt-1 break-all text-xs text-muted-foreground">
                     /{p.slug} · {p.status}
                     {p.mini_project_token ? ' · mini-site' : ''}
+                    {p.show_on_website ? ' · website (gast)' : ''}
+                    {p.show_for_teacher ? ' · docent' : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:shrink-0">
+                  <Button variant="outline" size="sm" className="gap-1" onClick={() => void openPreview(p.id)}>
+                    <Eye className="h-4 w-4" />
+                    Preview
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => startEdit(p)}>
                     Bewerken
                   </Button>
@@ -501,6 +539,42 @@ export default function AdminProjectsPage() {
               </select>
             </div>
 
+            <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
+              <p className="text-sm font-medium">Zichtbaarheid (drie weergaven)</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <strong>Gasten</strong> zien alleen projecten met “Website”. <strong>Docenten</strong> zien Website +
+                “Docent”. <strong>Admin</strong> ziet altijd alles (dit scherm + Preview).
+              </p>
+              <div className="mt-3 flex flex-col gap-3">
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.show_on_website}
+                    onChange={(e) => setForm((s) => ({ ...s, show_on_website: e.target.checked }))}
+                  />
+                  <span>
+                    <span className="font-medium">Website (gasten)</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">Op home en /projects, modals voor bezoekers.</span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.show_for_teacher}
+                    onChange={(e) => setForm((s) => ({ ...s, show_for_teacher: e.target.checked }))}
+                  />
+                  <span>
+                    <span className="font-medium">Docentenportaal</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Zichtbaar op /teacher naast alle gast-projecten.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
             <div className="grid gap-1.5">
               <Label htmlFor="description">Beschrijving</Label>
               <Textarea
@@ -521,6 +595,32 @@ export default function AdminProjectsPage() {
               {saving ? 'Opslaan…' : 'Opslaan'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{previewProject?.title ?? 'Preview'}</DialogTitle>
+            <DialogDescription>Admin-preview: zelfde modal-inhoud als op de website (ongeacht vlaggen).</DialogDescription>
+          </DialogHeader>
+          {previewLoading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-sm">Laden…</span>
+            </div>
+          ) : previewError ? (
+            <p className="text-sm text-destructive">{previewError}</p>
+          ) : previewProject ? (
+            <ProjectModalBody
+              title={previewProject.title}
+              description={previewProject.description}
+              url={previewProject.url}
+              tags={previewProject.tags ?? []}
+              thumbnail_url={previewProject.thumbnail_url}
+              mini_project_token={previewProject.mini_project_token ?? null}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

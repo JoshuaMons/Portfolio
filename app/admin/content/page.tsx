@@ -27,13 +27,13 @@ type Unified =
 function rowInDocent(r: Unified): boolean {
   if (r.kind === 'assignment') return true;
   if (r.kind === 'file') return Boolean(r.subtitle.includes('docent'));
-  if (r.kind === 'project') return r.subtitle.includes('published');
+  if (r.kind === 'project') return r.subtitle.includes('docent');
   return false;
 }
 
 function rowInWeb(r: Unified): boolean {
-  if (r.kind === 'file') return r.subtitle.includes('website');
-  if (r.kind === 'project') return r.subtitle.includes('published');
+  if (r.kind === 'file') return r.subtitle.includes('website (gast)');
+  if (r.kind === 'project') return r.subtitle.includes('website (gast)');
   return false;
 }
 
@@ -81,11 +81,15 @@ export default function AdminContentPage() {
       const out: Unified[] = [];
 
       for (const p of projects) {
+        const vis: string[] = [];
+        if (p.show_on_website) vis.push('website (gast)');
+        if (p.show_for_teacher) vis.push('docent');
+        if (!vis.length) vis.push('alleen admin');
         out.push({
           kind: 'project',
           id: p.id,
           title: p.title,
-          subtitle: `project · ${p.status}`,
+          subtitle: `project · ${p.status} · ${vis.join(' + ')}`,
           href: '/admin/projects',
           updated_at: p.updated_at,
         });

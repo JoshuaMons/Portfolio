@@ -17,12 +17,15 @@ export async function GET(_req: Request, { params }: { params: { slug: string } 
 
     const supabase = createClient(url, serviceRole, { auth: { persistSession: false } });
 
-    const { data: project, error } = await supabase
+    const adminUserId = process.env.ADMIN_USER_ID;
+    let q = supabase
       .from('projects')
       .select('*')
       .eq('slug', slug)
       .eq('status', 'published')
-      .maybeSingle();
+      .eq('show_on_website', true);
+    if (adminUserId) q = q.eq('owner_id', adminUserId);
+    const { data: project, error } = await q.maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!project) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 });

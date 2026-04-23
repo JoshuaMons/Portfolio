@@ -238,11 +238,25 @@ for each row execute function public.set_updated_at();
 
 alter table public.projects enable row level security;
 
+-- Zichtbaarheid: gasten (website) vs docenten vs admin-eigenaar
+alter table public.projects add column if not exists show_on_website boolean not null default false;
+alter table public.projects add column if not exists show_for_teacher boolean not null default false;
+
+-- Bestaande gepubliceerde projecten: houd huidig gedrag aan (beide aan)
+update public.projects
+set show_on_website = true, show_for_teacher = true
+where status = 'published'
+  and coalesce(show_on_website, false) = false
+  and coalesce(show_for_teacher, false) = false;
+
 drop policy if exists "projects_public_read_published" on public.projects;
 create policy "projects_public_read_published"
 on public.projects
 for select
-using (status = 'published' or auth.uid() = owner_id);
+using (
+  auth.uid() = owner_id
+  or (status = 'published' and coalesce(show_on_website, false) = true)
+);
 
 drop policy if exists "projects_owner_write" on public.projects;
 create policy "projects_owner_write"

@@ -27,6 +27,13 @@ Als je deze error ziet, run dan opnieuw `supabase/schema.sql`.
 Het schema bevat nu een **idempotente** patch:
 - `alter table public.profiles add column if not exists contact_email text;`
 
+### Projecten: zichtbaarheid gast / docent
+Het schema voegt o.a. toe op **`projects`**:
+- **`show_on_website`** — project verschijnt voor **gasten** (home, `/projects`, slug-pagina) als `status = published`.
+- **`show_for_teacher`** — project verschijnt extra in het **docentenportaal** (naast alle gast-projecten).
+
+RLS laat anonieme clients alleen `published` + `show_on_website` lezen; docentenlijsten lopen via `/api/teacher/projects` (service role). Admin ziet alles in `/admin`.
+
 ### Mini-ZIP’s in de admin Uploads-lijst + docent-koppelingen
 Na een schema-update moet je opnieuw `supabase/schema.sql` draaien in de SQL Editor. Het schema voegt (idempotent) toe:
 - **`files.mini_project_id`** — verwijst naar `mini_projects(id)`; bij import van een mini-ZIP wordt naast `mini_projects` ook een **`files`**-rij aangemaakt zodat mini’s in dezelfde admin-lijst staan als gewone uploads. Verwijderen van zo’n rij ruimt ook de mini + storage op (best effort).

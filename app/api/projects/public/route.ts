@@ -12,15 +12,19 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const rawLimit = Number(searchParams.get('limit')) || 5;
-    const limit = Math.min(Math.max(rawLimit, 1), 30);
+    const limit = Math.min(Math.max(rawLimit, 1), 120);
     const offset = Math.max(Number(searchParams.get('offset')) || 0, 0);
 
     const supabase = createClient(url, serviceRole, { auth: { persistSession: false } });
+    const adminUserId = process.env.ADMIN_USER_ID;
 
-    const { data: rows, error } = await supabase
+    let q = supabase
       .from('projects')
-      .select('id,title,slug,status,updated_at')
+      .select('id,title,slug,status,updated_at,description,url,tags,thumbnail_url,mini_project_token,show_on_website,show_for_teacher')
       .eq('status', 'published')
+      .eq('show_on_website', true);
+    if (adminUserId) q = q.eq('owner_id', adminUserId);
+    const { data: rows, error } = await q
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit);
 
