@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { ExternalLink, FileText, FolderKanban } from 'lucide-react';
 
 import type { Project } from '@/types/portfolio';
+import { ProjectModalBody } from '@/components/portfolio/project-modal-body';
 import { Button } from '@/components/ui/button';
 import { SmartLinkPreview } from '@/components/preview/smart-link-preview';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type TeacherFileRow = {
@@ -34,6 +35,7 @@ type Item = {
   updated_at: string;
   mime_type?: string | null;
   original_name?: string | null;
+  slug?: string;
 };
 
 function toProjectItem(p: Project): Item {
@@ -47,6 +49,7 @@ function toProjectItem(p: Project): Item {
     thumbnail_url: p.thumbnail_url,
     mini_project_token: p.mini_project_token ?? null,
     updated_at: p.updated_at,
+    slug: p.slug,
   };
 }
 
@@ -133,7 +136,8 @@ export function TeacherProjectsClient({ projects }: { projects: Project[] }) {
       <div className="glass-surface rounded-3xl p-6 shadow-card">
         <h1 className="text-2xl font-semibold">Docentenportaal</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Gepubliceerde <strong>projecten</strong> en <strong>gedeelde bestanden</strong> staan hier hetzelfde als kaarten; open iets voor preview of download. Voor het technische logboek:{' '}
+          Gepubliceerde <strong>projecten</strong> en <strong>gedeelde bestanden</strong>: klik voor dezelfde preview-modals
+          als op de publieke projecten-pagina (externe site + mini-site + samenvatting). Logboek:{' '}
           <Link href="/teacher/logbook" className="font-medium text-primary underline-offset-4 hover:underline">
             Logboek
           </Link>
@@ -199,85 +203,124 @@ export function TeacherProjectsClient({ projects }: { projects: Project[] }) {
           <DialogHeader>
             <DialogTitle>{active?.title ?? 'Item'}</DialogTitle>
             <DialogDescription>
-              {active?.kind === 'file' ? 'Download of bekijk het gedeelde bestand.' : 'Externe link, mini-site, of beide.'}
+              {active?.kind === 'file'
+                ? 'Preview (zoals op /files) en omschrijving.'
+                : active?.kind === 'project'
+                  ? 'Zelfde preview als op de website.'
+                  : 'Bekijk de bewijs-pagina of open in een nieuw tabblad.'}
             </DialogDescription>
           </DialogHeader>
 
           {active && (
             <>
-              {active.kind === 'file' && active.mini_project_token && active.url ? (
+              {active.kind === 'project' ? (
+                <ProjectModalBody
+                  title={active.title}
+                  description={active.description}
+                  url={active.url}
+                  tags={active.tags}
+                  thumbnail_url={active.thumbnail_url}
+                  mini_project_token={active.mini_project_token}
+                />
+              ) : active.kind === 'evidence' && active.url ? (
+                <div className="mt-4 space-y-3">
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => window.open(active.url!, '_blank', 'noopener,noreferrer')}>
+                      Openen / printen
+                    </Button>
+                  </div>
+                  <SmartLinkPreview url={active.url} title={active.title} thumbnailUrl={active.thumbnail_url} />
+                  <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{active.description}</p>
+                </div>
+              ) : active.kind === 'file' && active.mini_project_token && active.url ? (
                 <Tabs defaultValue="mini">
                   <TabsList>
                     <TabsTrigger value="mini">Mini-site</TabsTrigger>
-                    <TabsTrigger value="download">Bestand / download</TabsTrigger>
+                    <TabsTrigger value="preview">Bestand / preview</TabsTrigger>
+                    <TabsTrigger value="details">Omschrijving</TabsTrigger>
                   </TabsList>
                   <TabsContent value="mini" className="mt-4">
                     <div className="overflow-hidden rounded-2xl border border-border/60 bg-background">
-                      <iframe title="Mini-project" src={miniSrc!} className="h-[72vh] w-full bg-white" />
+                      <iframe title="Mini-project" src={miniSrc!} className="h-[min(72vh,640px)] w-full bg-white sm:h-[72vh]" />
                     </div>
                   </TabsContent>
-                  <TabsContent value="download" className="mt-4 space-y-3">
-                    {renderFilePreview(active, isImage, isPdf)}
+                  <TabsContent value="preview" className="mt-4 space-y-3">
+                    {teacherFilePreview(active, isImage, isPdf)}
+                  </TabsContent>
+                  <TabsContent value="details" className="mt-4">
+                    {active.tags?.length ? (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {active.tags.map((t) => (
+                          <span key={t} className="rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">{active.description}</p>
                   </TabsContent>
                 </Tabs>
               ) : active.kind === 'file' && active.mini_project_token ? (
-                <div className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background">
-                  <iframe title="Mini-project" src={miniSrc!} className="h-[72vh] w-full bg-white" />
+                <div className="space-y-4">
+                  <div className="overflow-hidden rounded-2xl border border-border/60 bg-background">
+                    <iframe title="Mini-project" src={miniSrc!} className="h-[min(72vh,640px)] w-full bg-white sm:h-[72vh]" />
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{active.description}</p>
                 </div>
-              ) : active.kind === 'file' ? (
-                <div className="mt-4 space-y-3">{renderFilePreview(active, isImage, isPdf)}</div>
-              ) : active.mini_project_token && active.url ? (
-                <Tabs defaultValue="extern">
+              ) : active.kind === 'file' && active.url ? (
+                <Tabs defaultValue="preview">
                   <TabsList>
-                    <TabsTrigger value="extern">Externe preview</TabsTrigger>
-                    <TabsTrigger value="mini">Mini-site (lokaal)</TabsTrigger>
+                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                    <TabsTrigger value="details">Omschrijving</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="extern" className="mt-4">
-                    <SmartLinkPreview url={active.url} title={active.title} thumbnailUrl={active.thumbnail_url} />
+                  <TabsContent value="preview" className="mt-4 space-y-3">
+                    {teacherFilePreview(active, isImage, isPdf)}
                   </TabsContent>
-                  <TabsContent value="mini" className="mt-4">
-                    <div className="overflow-hidden rounded-2xl border border-border/60 bg-background">
-                      <iframe title="Mini-project" src={miniSrc!} className="h-[72vh] w-full bg-white" />
-                    </div>
+                  <TabsContent value="details" className="mt-4">
+                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">{active.description}</p>
                   </TabsContent>
                 </Tabs>
-              ) : active.mini_project_token ? (
-                <div className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background">
-                  <iframe title="Mini-project" src={miniSrc!} className="h-[72vh] w-full bg-white" />
-                </div>
-              ) : active.url ? (
-                <div className="mt-4 space-y-3">
-                  {active.kind === 'evidence' ? (
-                    <div className="flex justify-end">
-                      <Button variant="outline" size="sm" onClick={() => window.open(active.url!, '_blank', 'noopener,noreferrer')}>
-                        Print / Save as PDF
-                      </Button>
-                    </div>
-                  ) : null}
-                  <SmartLinkPreview url={active.url} title={active.title} thumbnailUrl={active.thumbnail_url} />
-                </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Geen preview beschikbaar.</p>
               )}
 
-              {active.original_name ? (
+              {active.kind === 'file' && active.original_name && !(active.mini_project_token && active.url) ? (
                 <p className="mt-2 text-xs text-muted-foreground">Bestandsnaam: {active.original_name}</p>
               ) : null}
-              <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{active.description}</p>
             </>
           )}
+
+          {active?.kind === 'project' && active.slug ? (
+            <DialogFooter>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/projects/${encodeURIComponent(active.slug)}`}>Publieke projectpagina →</Link>
+              </Button>
+            </DialogFooter>
+          ) : null}
         </DialogContent>
       </Dialog>
     </>
   );
 }
 
-function renderFilePreview(active: Item, isImage: boolean | undefined, isPdf: boolean | undefined) {
+function teacherFilePreview(active: Item, isImage: boolean | undefined, isPdf: boolean | undefined) {
   if (!active.url) {
     return <p className="text-sm text-muted-foreground">Geen downloadlink beschikbaar.</p>;
   }
   return (
-    <>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {active.original_name ? (
+          <p className="truncate text-xs text-muted-foreground">{active.original_name}</p>
+        ) : (
+          <span />
+        )}
+        <Button variant="outline" size="sm" asChild>
+          <a href={active.url} target="_blank" rel="noopener noreferrer">
+            Openen in nieuw tabblad
+          </a>
+        </Button>
+      </div>
       {isImage ? (
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-background p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -289,13 +332,7 @@ function renderFilePreview(active: Item, isImage: boolean | undefined, isPdf: bo
           <iframe title="PDF" src={active.url} className="h-[72vh] w-full bg-white" />
         </div>
       ) : null}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="default" size="sm" asChild>
-          <a href={active.url} target="_blank" rel="noopener noreferrer">
-            Openen in nieuw tabblad
-          </a>
-        </Button>
-      </div>
-    </>
+      {!isImage && !isPdf ? <SmartLinkPreview url={active.url} title={active.title} thumbnailUrl={active.thumbnail_url} /> : null}
+    </div>
   );
 }

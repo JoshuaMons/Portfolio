@@ -6,9 +6,8 @@ import { ExternalLink } from 'lucide-react';
 
 import type { Project } from '@/types/portfolio';
 import { PublicFilesGallery, type PublicFile } from '@/app/files/files-client';
-import { SmartLinkPreview } from '@/components/preview/smart-link-preview';
+import { ProjectModalBody } from '@/components/portfolio/project-modal-body';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function ProjectsClient({
   initialProjects,
@@ -48,7 +47,9 @@ export function ProjectsClient({
                 <p className="text-base font-semibold">{p.title}</p>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{p.description}</p>
               </div>
-              {p.url && <ExternalLink className="h-4 w-4 text-muted-foreground opacity-70 group-hover:opacity-100" />}
+              {p.url || p.mini_project_token ? (
+                <ExternalLink className="h-4 w-4 text-muted-foreground opacity-70 group-hover:opacity-100" />
+              ) : null}
             </div>
             {p.tags?.length ? (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -74,24 +75,14 @@ export function ProjectsClient({
           </DialogHeader>
 
           {active && (
-            <Tabs defaultValue="preview">
-              <TabsList>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-                <TabsTrigger value="details">Details</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="preview">
-                {!active.url ? (
-                  <p className="text-sm text-muted-foreground">Geen URL ingevuld voor dit project.</p>
-                ) : (
-                  <SmartLinkPreview url={active.url} title={active.title} thumbnailUrl={active.thumbnail_url} />
-                )}
-              </TabsContent>
-
-              <TabsContent value="details">
-                <p className="whitespace-pre-wrap text-sm text-muted-foreground">{active.description}</p>
-              </TabsContent>
-            </Tabs>
+            <ProjectModalBody
+              title={active.title}
+              description={active.description}
+              url={active.url}
+              tags={active.tags ?? []}
+              thumbnail_url={active.thumbnail_url}
+              mini_project_token={active.mini_project_token ?? null}
+            />
           )}
         </DialogContent>
       </Dialog>

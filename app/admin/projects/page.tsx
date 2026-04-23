@@ -227,8 +227,7 @@ export default function AdminProjectsPage() {
       }
 
       const slugBase = form.slug.trim() || slugify(titleFinal);
-      const payload = {
-        id: form.id,
+      const basePayload = {
         title: titleFinal.trim(),
         slug: slugBase,
         description: form.description ?? '',
@@ -238,6 +237,7 @@ export default function AdminProjectsPage() {
         thumbnail_url: form.thumbnail_url.trim() || null,
         mini_project_token: form.mini_project_token.trim() || null,
       };
+      const payload = form.id ? { ...basePayload, id: form.id } : basePayload;
 
       const { error } = await supabase.from('projects').upsert(payload).select().single();
       if (error) throw error;
