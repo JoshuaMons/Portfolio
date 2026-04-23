@@ -1,19 +1,35 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { ArrowRight } from 'lucide-react';
 
-import { createSupabasePublicClient } from '@/lib/supabase/public';
 import { Button } from '@/components/ui/button';
+import { HomeProjectsSection, type HomeProjectRow } from '@/app/home-projects-section';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function HomePage() {
-  const supabase = createSupabasePublicClient();
-  const [{ data: projects }] = supabase
-    ? await Promise.all([
-        supabase.from('projects').select('id,title,slug,status,updated_at').eq('status', 'published').order('updated_at', { ascending: false }).limit(3),
-      ])
-    : [{ data: null }];
+  const h = headers();
+  const proto = h.get('x-forwarded-proto') ?? 'http';
+  const host = h.get('x-forwarded-host') ?? h.get('host');
+  const baseUrl = host ? `${proto}://${host}` : '';
+
+  let initialProjects: HomeProjectRow[] = [];
+  let initialNextOffset: number | null = null;
+  let projectsFetchOk = false;
+
+  if (baseUrl) {
+    const res = await fetch(`${baseUrl}/api/projects/public?limit=5&offset=0`, { cache: 'no-store' }).catch(() => null);
+    projectsFetchOk = Boolean(res?.ok);
+    if (res?.ok) {
+      const json = (await res.json().catch(() => ({}))) as {
+        data?: HomeProjectRow[];
+        nextOffset?: number | null;
+      };
+      initialProjects = json.data ?? [];
+      initialNextOffset = json.nextOffset ?? null;
+    }
+  }
 
   return (
     <div className="min-h-dvh">
@@ -46,23 +62,20 @@ export default async function HomePage() {
                 <Link href="/projects">Alles</Link>
               </Button>
             </div>
-            <div className="mt-3 space-y-2">
-              {(projects ?? []).map((p: any) => (
-                <Link
-                  key={p.id}
-                  href={`/projects/${p.slug}`}
-                  className="block rounded-2xl border border-border/60 bg-background/50 px-4 py-3 text-sm hover:bg-accent"
-                >
-                  {p.title}
-                </Link>
-              ))}
-              {supabase && (projects ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nog geen gepubliceerde projecten.</p>
-              ) : null}
-              {!supabase ? (
-                <p className="text-sm text-muted-foreground">Supabase niet geconfigureerd.</p>
-              ) : null}
-            </div>
+            {baseUrl ? (
+              projectsFetchOk ? (
+                <>
+                  <HomeProjectsSection initialProjects={initialProjects} initialNextOffset={initialNextOffset} />
+                  {initialProjects.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted-foreground">Nog geen gepubliceerde projecten.</p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">Kon laatste projecten niet laden (API of configuratie).</p>
+              )
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">Host onbekend; projecten niet geladen.</p>
+            )}
           </div>
         </section>
       </main>
