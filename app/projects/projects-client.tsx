@@ -13,12 +13,14 @@ export function ProjectsClient({
   initialProjects,
   initialPublicFiles,
   supabaseConfigured,
+  viewerIsLoggedIn,
   filesFetchFailed,
   projectsFetchFailed,
 }: {
   initialProjects: Project[];
   initialPublicFiles: PublicFile[];
   supabaseConfigured: boolean;
+  viewerIsLoggedIn: boolean;
   filesFetchFailed?: boolean;
   projectsFetchFailed?: boolean;
 }) {
@@ -95,26 +97,31 @@ export function ProjectsClient({
         </DialogContent>
       </Dialog>
 
-      <section className="mt-16 border-t border-border/60 pt-12">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">Bestanden & uploads</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Zelfde publieke bestanden als op <Link href="/files" className="font-medium text-primary underline-offset-4 hover:underline">/files</Link>
-              , direct onder je projecten.
-            </p>
+      {viewerIsLoggedIn ? (
+        <section className="mt-16 border-t border-border/60 pt-12">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Bestanden & uploads</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Zelfde publieke bestanden als op{' '}
+                <Link href="/files" className="font-medium text-primary underline-offset-4 hover:underline">
+                  /files
+                </Link>
+                , direct onder je projecten.
+              </p>
+            </div>
           </div>
-        </div>
-        {filesFetchFailed ? (
-          <p className="mt-6 rounded-2xl border border-border/60 bg-background/50 p-4 text-sm text-muted-foreground">
-            Kon uploads niet laden. Controleer `SUPABASE_SERVICE_ROLE_KEY` op de server.
-          </p>
-        ) : initialPublicFiles.length === 0 ? (
-          <p className="mt-6 text-sm text-muted-foreground">Nog geen bestanden met website-zichtbaarheid.</p>
-        ) : (
-          <PublicFilesGallery files={initialPublicFiles} className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" />
-        )}
-      </section>
+          {filesFetchFailed ? (
+            <p className="mt-6 rounded-2xl border border-border/60 bg-background/50 p-4 text-sm text-muted-foreground">
+              Kon uploads niet laden. Controleer `SUPABASE_SERVICE_ROLE_KEY` op de server.
+            </p>
+          ) : initialPublicFiles.length === 0 ? (
+            <p className="mt-6 text-sm text-muted-foreground">Nog geen bestanden met website-zichtbaarheid.</p>
+          ) : (
+            <PublicFilesGallery files={initialPublicFiles} className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" />
+          )}
+        </section>
+      ) : null}
     </>
   );
 }
