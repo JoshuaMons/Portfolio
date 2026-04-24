@@ -397,3 +397,71 @@ create index if not exists files_mini_project_id_idx on public.files (mini_proje
 
 alter table public.teacher_assignments add column if not exists attached_file_id uuid references public.files (id) on delete set null;
 
+-- =========================
+-- News preferences (mobile app)
+-- =========================
+create table if not exists public.news_preferences (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  keyword text not null,
+  category text,
+  action text not null check (action in ('like', 'dislike')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.news_preferences enable row level security;
+
+drop policy if exists "Users manage own prefs" on public.news_preferences;
+drop policy if exists "news_prefs_select_own" on public.news_preferences;
+drop policy if exists "news_prefs_insert_own" on public.news_preferences;
+drop policy if exists "news_prefs_update_own" on public.news_preferences;
+drop policy if exists "news_prefs_delete_own" on public.news_preferences;
+
+create policy "news_prefs_select_own"
+on public.news_preferences for select
+using (auth.uid() = user_id);
+
+create policy "news_prefs_insert_own"
+on public.news_preferences for insert
+with check (auth.uid() = user_id);
+
+create policy "news_prefs_update_own"
+on public.news_preferences for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "news_prefs_delete_own"
+on public.news_preferences for delete
+using (auth.uid() = user_id);
+
+-- =========================
+-- Shader settings (sync app <-> portfolio)
+-- =========================
+create table if not exists public.shader_settings (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  a text not null,
+  b text not null,
+  c text not null,
+  angle_deg integer not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.shader_settings enable row level security;
+
+drop policy if exists "shader_settings_select_own" on public.shader_settings;
+drop policy if exists "shader_settings_insert_own" on public.shader_settings;
+drop policy if exists "shader_settings_update_own" on public.shader_settings;
+
+create policy "shader_settings_select_own"
+on public.shader_settings for select
+using (auth.uid() = user_id);
+
+create policy "shader_settings_insert_own"
+on public.shader_settings for insert
+with check (auth.uid() = user_id);
+
+create policy "shader_settings_update_own"
+on public.shader_settings for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
