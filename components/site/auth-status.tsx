@@ -55,22 +55,22 @@ export function AuthStatus() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="h-9 w-28 rounded-xl border border-border/60 bg-background/50" />
+      <div className="flex h-9 items-center gap-2">
+        <div className="h-9 w-28 shrink-0 rounded-xl border border-border/60 bg-background/50" />
       </div>
     );
   }
 
   if (!displayName) {
     return (
-      <div className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm" className="gap-2">
+      <div className="flex h-9 flex-nowrap items-center justify-end gap-2">
+        <Button asChild variant="outline" size="sm" className="h-9 shrink-0 gap-2 whitespace-nowrap px-3">
           <Link href="/login">
             <Shield className="h-4 w-4" />
             Admin
           </Link>
         </Button>
-        <Button asChild variant="outline" size="sm" className="gap-2">
+        <Button asChild variant="outline" size="sm" className="h-9 shrink-0 gap-2 whitespace-nowrap px-3">
           <Link href="/teacher/login?next=/teacher">
             <GraduationCap className="h-4 w-4" />
             Docenten
@@ -88,22 +88,28 @@ export function AuthStatus() {
 
   if (role === 'teacher') {
     return (
-      <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-        <Button asChild variant="outline" size="sm" className="gap-2 shrink-0">
+      <div className="flex min-w-0 flex-nowrap items-center justify-end gap-2">
+        <Button asChild variant="outline" size="sm" className="h-9 shrink-0 gap-2 whitespace-nowrap px-3">
           <Link href="/teacher">
-            <GraduationCap className="h-4 w-4" />
+            <GraduationCap className="h-4 w-4 shrink-0" />
             Docent view
           </Link>
         </Button>
         {accountEmail ? (
           <span
-            className="max-w-[min(220px,42vw)] truncate rounded-xl border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground sm:max-w-[260px]"
+            className="inline-flex h-9 min-w-0 max-w-[min(140px,30vw)] shrink items-center truncate rounded-xl border border-border/60 bg-background/60 px-2.5 text-xs text-muted-foreground sm:max-w-[200px] lg:max-w-[240px]"
             title={accountEmail}
           >
             {accountEmail}
           </span>
         ) : null}
-        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void teacherSignOut()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 shrink-0 whitespace-nowrap px-3"
+          onClick={() => void teacherSignOut()}
+        >
           Uitloggen
         </Button>
       </div>
@@ -111,11 +117,11 @@ export function AuthStatus() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Button asChild variant="outline" size="sm" className="gap-2">
-        <Link href="/admin">
-          <User className="h-4 w-4" />
-          {displayName}
+    <div className="flex h-9 flex-nowrap items-center justify-end gap-2">
+      <Button asChild variant="outline" size="sm" className="h-9 max-w-full gap-2 truncate px-3 sm:max-w-[220px]">
+        <Link href="/admin" className="flex min-w-0 items-center gap-2">
+          <User className="h-4 w-4 shrink-0" />
+          <span className="truncate">{displayName}</span>
         </Link>
       </Button>
     </div>

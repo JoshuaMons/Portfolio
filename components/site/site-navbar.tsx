@@ -29,7 +29,7 @@ export function SiteNavbar() {
   return (
     <header className="sticky top-0 z-50">
       <div className="mx-auto w-full max-w-6xl px-5 pt-4">
-        <div className="glass-surface grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-3xl px-4 py-3 shadow-card">
+        <div className="glass-surface grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 rounded-3xl px-4 py-3 shadow-card">
           <nav className="hidden items-center gap-1 md:flex">
             {nav.slice(0, 3).map((item) => {
               const active = pathname === item.href;
@@ -52,33 +52,37 @@ export function SiteNavbar() {
             <SiteLogo />
           </div>
 
-          <div className="hidden items-center justify-end gap-2 md:flex">
+          <div className="hidden min-w-0 items-center justify-end gap-2 md:flex">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              className="gap-2"
+              className="h-9 shrink-0 gap-2 whitespace-nowrap px-3"
             >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {isDark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
               {isDark ? 'Light' : 'Dark'}
             </Button>
-            <AuthStatus />
+            <div className="min-w-0 shrink">
+              <AuthStatus />
+            </div>
           </div>
         </div>
       </div>
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-5 pb-4 pt-3 md:hidden">
-        <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/50 bg-background/40 px-3 py-2">
+        <div className="flex min-w-0 items-center justify-between gap-2 rounded-2xl border border-border/50 bg-background/40 px-3 py-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className="gap-2"
+            className="h-9 shrink-0 gap-2 whitespace-nowrap px-3"
           >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {isDark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
             {isDark ? 'Light' : 'Dark'}
           </Button>
-          <AuthStatus />
+          <div className="min-w-0 flex-1 pl-2">
+            <AuthStatus />
+          </div>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-1">
           {nav.map((item) => {
