@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { requireTeacherServiceClient } from '@/lib/teacher-route-auth';
 
-/** Gepubliceerde projecten voor docent: website-zichtbaar óf expliciet voor docent gemarkeerd. */
+/** Gepubliceerde projecten alleen als expliciet voor docenten gemarkeerd (`show_for_teacher`). */
 export async function GET() {
   const auth = await requireTeacherServiceClient();
   if (!auth.ok) {
@@ -13,7 +13,7 @@ export async function GET() {
     .from('projects')
     .select('*')
     .eq('status', 'published')
-    .or('show_on_website.eq.true,show_for_teacher.eq.true')
+    .eq('show_for_teacher', true)
     .eq('owner_id', auth.adminUserId)
     .order('updated_at', { ascending: false });
 

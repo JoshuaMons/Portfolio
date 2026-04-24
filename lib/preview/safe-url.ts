@@ -53,8 +53,15 @@ export function safeParseUrl(raw: string): { ok: true; url: URL } | { ok: false;
 
 export { BYTES as MAX_BYTES };
 
+export type SafeFetchOpts = {
+  /** Alleen meesturen naar `forwardCookieHost` (zelfde site), zodat o.a. `/api/files/stream/*` docent-sessie ziet. */
+  forwardCookie?: string;
+  forwardCookieHost?: string;
+};
+
 export async function safeFetch(
-  startUrl: string
+  startUrl: string,
+  opts?: SafeFetchOpts
 ): Promise<
   { ok: true; url: string; finalUrl: string; status: number; contentType: string; buffer: ArrayBuffer } | { ok: false; error: string }
 > {
@@ -65,12 +72,16 @@ export async function safeFetch(
   for (let hop = 0; hop < 4; hop++) {
     const p2 = safeParseUrl(current);
     if (!p2.ok) return p2;
+    const host = p2.url.hostname.toLowerCase();
+    const allowCookie =
+      Boolean(opts?.forwardCookie && opts.forwardCookieHost && host === opts.forwardCookieHost.toLowerCase());
     const res = await fetch(p2.url.toString(), {
       method: 'GET',
       redirect: 'manual',
       headers: {
         'User-Agent': 'PortfolioPreview/1.0 (document preview)',
         Accept: '*/*',
+        ...(allowCookie ? { Cookie: opts!.forwardCookie! } : {}),
       },
     });
 

@@ -130,8 +130,8 @@ export function TeacherProjectsClient({
       <div className="glass-surface rounded-3xl p-6 shadow-card">
         <h1 className="text-2xl font-semibold">Docentenportaal</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Gepubliceerde <strong>projecten</strong> en <strong>gedeelde bestanden</strong>: klik voor dezelfde preview-modals
-          als op de publieke projecten-pagina (externe site + mini-site + samenvatting). Logboek:{' '}
+          Alleen items die in de admin als <strong>docent</strong> zijn gemarkeerd (<code className="text-xs">show_for_teacher</code>
+          ): projecten en bestanden. Klik voor preview-modals (externe site + mini-site + samenvatting). Logboek:{' '}
           <Link href="/teacher/logbook" className="font-medium text-primary underline-offset-4 hover:underline">
             Logboek
           </Link>
@@ -143,7 +143,7 @@ export function TeacherProjectsClient({
           <p className="mt-2 text-xs text-destructive">Host onbekend; projecten niet geladen.</p>
         ) : teacherProjectsApiOk === false ? (
           <p className="mt-2 text-xs text-destructive">
-            Projecten-API mislukt (sessie of kolommen `show_on_website` / `show_for_teacher`). Vernieuw of run schema-SQL.
+            Projecten-API mislukt (sessie of kolom `show_for_teacher`). Vernieuw of run schema-SQL.
           </p>
         ) : null}
       </div>

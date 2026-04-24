@@ -62,9 +62,28 @@ export async function POST(req: Request) {
     const url = typeof body?.url === 'string' ? body.url.trim() : '';
     if (!url) return htmlResponse({ ok: false, error: 'Geen URL' });
 
-    const pathExt = fileExtFromPath(new URL(url).pathname);
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return htmlResponse({ ok: false, error: 'Ongeldige URL' });
+    }
+    const pathExt = fileExtFromPath(parsedUrl.pathname);
 
-    const fetched = await safeFetch(url);
+    const streamPath = /^\/api\/files\/stream\/[0-9a-f-]{36}\/?$/i.test(parsedUrl.pathname);
+    const reqHostRaw =
+      req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ?? req.headers.get('host') ?? '';
+    const forwardCookieHost = reqHostRaw.split(':')[0].toLowerCase();
+    const urlHost = parsedUrl.hostname.toLowerCase();
+    const forwardCookie =
+      streamPath && forwardCookieHost && urlHost === forwardCookieHost
+        ? (req.headers.get('cookie') ?? undefined)
+        : undefined;
+
+    const fetched = await safeFetch(url, {
+      forwardCookie,
+      forwardCookieHost: forwardCookie ? forwardCookieHost : undefined,
+    });
     if (!fetched.ok) return htmlResponse({ ok: false, error: fetched.error });
 
     const { contentType, buffer, finalUrl } = fetched;
