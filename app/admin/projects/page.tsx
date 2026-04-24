@@ -382,8 +382,11 @@ export default function AdminProjectsPage() {
           <DialogHeader>
             <DialogTitle>{form.id ? 'Project bewerken' : 'Nieuw project'}</DialogTitle>
             <DialogDescription>
-              URL voor preview in de site. Laat URL leeg en kies of upload een bestand — dan wordt automatisch een
-              stabiele preview-link gezet (<code className="text-xs">/api/files/stream/…</code>). Zie ook{' '}
+              URL voor preview in de site. Laat URL leeg en kies of upload een bestand (o.a. HTML, PDF, Word{' '}
+              <code className="text-xs">.docx</code> / <code className="text-xs">.dotx</code>, OpenDocument{' '}
+              <code className="text-xs">.odt</code>, klassiek Word <code className="text-xs">.doc</code> als bestand) —
+              dan wordt automatisch een stabiele preview-link gezet (<code className="text-xs">/api/files/stream/…</code>
+              ). Zie ook{' '}
               <Link href="/admin/uploads" className="font-medium text-primary underline-offset-4 hover:underline">
                 Uploads
               </Link>
@@ -472,6 +475,7 @@ export default function AdminProjectsPage() {
                     <input
                       id="projectUpload"
                       type="file"
+                      accept=".html,.htm,.pdf,.doc,.docx,.dotx,.odt,.ott,.md,.txt,.csv,.ipynb,.png,.jpg,.jpeg,.webp,.gif,.svg"
                       className="sr-only"
                       onChange={(e) => {
                         const f = e.target.files?.[0] ?? null;

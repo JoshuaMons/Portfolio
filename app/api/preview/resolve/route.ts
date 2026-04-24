@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import type { PreviewResult } from '@/lib/preview/types';
 import { fileExtFromPath, safeFetch } from '@/lib/preview/safe-url';
 import { parseIpynbBuffer } from '@/lib/preview/parse-ipynb';
+import { odtBufferToHtml } from '@/lib/preview/odt-to-html';
 
 export const runtime = 'nodejs';
 
@@ -37,8 +38,6 @@ const CODE_EXT: Record<string, string> = {
   yaml: 'yaml',
   json: 'json',
   xml: 'xml',
-  html: 'html',
-  htm: 'html',
   css: 'css',
   scss: 'scss',
   sass: 'scss',
@@ -78,6 +77,19 @@ export async function POST(req: Request) {
     if (ct.includes('text/html') || ct.includes('application/xhtml')) {
       return htmlResponse({ ok: true, kind: 'web' });
     }
+    // Vaak application/octet-stream + .html op signed URLs — toon gerenderde pagina (iframe), geen broncode
+    if (ext === 'html' || ext === 'htm') {
+      return htmlResponse({ ok: true, kind: 'web' });
+    }
+    {
+      const peek = new TextDecoder('utf-8', { fatal: false }).decode(
+        buffer.slice(0, Math.min(buffer.byteLength, 8192))
+      );
+      const lt = peek.trimStart().toLowerCase();
+      if (lt.startsWith('<!doctype html') || lt.startsWith('<html')) {
+        return htmlResponse({ ok: true, kind: 'web' });
+      }
+    }
 
     // PDF
     if (ct.includes('application/pdf') || ext === 'pdf') {
@@ -103,9 +115,25 @@ export async function POST(req: Request) {
       return htmlResponse({ ok: true, kind: 'video' });
     }
 
-    // Word
-    if (ext === 'docx' || ct.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-      const { value: html } = await mammoth.convertToHtml({ arrayBuffer: buffer });
+    // Word (Office Open XML)
+    if (
+      ext === 'docx' ||
+      ext === 'dotx' ||
+      ct.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+      ct.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.template')
+    ) {
+      let html: string;
+      try {
+        html = (await mammoth.convertToHtml({ arrayBuffer: buffer })).value;
+      } catch {
+        return htmlResponse({
+          ok: true,
+          kind: 'unsupported',
+          mime: contentType,
+          ext: ext || 'docx',
+          message: 'Dit Word-bestand kon niet worden omgezet. Open of download in een nieuw tabblad.',
+        });
+      }
       if (html.length > MAX_HTML) {
         return htmlResponse({
           ok: true,
@@ -115,7 +143,37 @@ export async function POST(req: Request) {
           message: 'Word-document is te groot om inline te tonen. Open in een nieuw tabblad of downloaden.',
         });
       }
-      return htmlResponse({ ok: true, kind: 'docx_html', html, label: 'Word (DOCX) → leesbare preview' });
+      const label = ext === 'dotx' ? 'Word-sjabloon (DOTX) → leesbare preview' : 'Word (DOCX) → leesbare preview';
+      return htmlResponse({ ok: true, kind: 'docx_html', html, label });
+    }
+
+    // OpenDocument Text
+    if (ext === 'odt' || ext === 'ott' || ct.includes('application/vnd.oasis.opendocument.text')) {
+      const html = odtBufferToHtml(buffer);
+      if (!html) {
+        return htmlResponse({
+          ok: true,
+          kind: 'unsupported',
+          mime: contentType,
+          ext: ext || 'odt',
+          message: 'Kon dit ODT-bestand niet lezen. Open of download in een nieuw tabblad.',
+        });
+      }
+      if (html.length > MAX_HTML) {
+        return htmlResponse({
+          ok: true,
+          kind: 'unsupported',
+          mime: contentType,
+          ext: ext || 'odt',
+          message: 'OpenDocument is te groot voor inline preview. Open in een nieuw tabblad.',
+        });
+      }
+      return htmlResponse({
+        ok: true,
+        kind: 'docx_html',
+        html,
+        label: ext === 'ott' ? 'OpenDocument-sjabloon (OTT) → leesbare preview' : 'OpenDocument (ODT) → leesbare preview',
+      });
     }
 
     if (ext === 'doc' || ct.includes('application/msword')) {
@@ -222,6 +280,10 @@ export async function POST(req: Request) {
 
     if (ct.startsWith('text/') || (ct.includes('json') && ext !== 'ipynb') || ct.includes('javascript') || ct.includes('typescript')) {
       const t = new TextDecoder().decode(buffer);
+      const ltHead = t.trimStart().toLowerCase();
+      if (ltHead.startsWith('<!doctype html') || ltHead.startsWith('<html')) {
+        return htmlResponse({ ok: true, kind: 'web' });
+      }
       if (t.length > MAX_CODE_CHARS) {
         return htmlResponse({
           ok: true,

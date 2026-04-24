@@ -24,7 +24,7 @@ type TeacherFileRow = {
 };
 
 type Item = {
-  kind: 'evidence' | 'project' | 'file';
+  kind: 'project' | 'file';
   key: string;
   title: string;
   description: string;
@@ -68,19 +68,6 @@ function toFileItem(r: TeacherFileRow): Item {
     original_name: r.original_name,
   };
 }
-
-const evidenceItem: Item = {
-  kind: 'evidence',
-  key: 'evidence:doc',
-  title: 'Projectdocumentatie (bewijs)',
-  description:
-    'Samenvatting van prompts → wat er gebouwd is, met verwijzingen naar code en testplan. Print / Save as PDF.',
-  url: '/teacher/evidence',
-  tags: ['bewijs', 'documentatie', 'samenvatting'],
-  thumbnail_url: null,
-  mini_project_token: null,
-  updated_at: '',
-};
 
 export function TeacherProjectsClient({
   projects,
@@ -126,10 +113,9 @@ export function TeacherProjectsClient({
 
   const projectItems = projects.map(toProjectItem);
   const fileItems = files.map(toFileItem);
-  const merged = [...projectItems, ...fileItems].sort((a, b) =>
+  const gridItems = [...projectItems, ...fileItems].sort((a, b) =>
     (b.updated_at || '').localeCompare(a.updated_at || '')
   );
-  const gridItems = [evidenceItem, ...merged];
 
   const miniSrc =
     active?.mini_project_token != null
@@ -174,8 +160,6 @@ export function TeacherProjectsClient({
               <div className="flex min-w-0 flex-1 items-start gap-2">
                 {it.kind === 'file' ? (
                   <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                ) : it.kind === 'evidence' ? (
-                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 ) : (
                   <FolderKanban className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 )}
@@ -203,11 +187,9 @@ export function TeacherProjectsClient({
             <p className="mt-3 text-[10px] text-muted-foreground">
               {it.kind === 'file'
                 ? 'Gedeeld bestand'
-                : it.kind === 'evidence'
-                  ? 'Interne pagina'
-                  : it.mini_project_token
-                    ? 'Project · bevat mini-site (HTML/CSS/JS)'
-                    : 'Project'}
+                : it.mini_project_token
+                  ? 'Project · bevat mini-site (HTML/CSS/JS)'
+                  : 'Project'}
             </p>
           </button>
         ))}
@@ -220,9 +202,7 @@ export function TeacherProjectsClient({
             <DialogDescription>
               {active?.kind === 'file'
                 ? 'Preview (zoals op /files) en omschrijving.'
-                : active?.kind === 'project'
-                  ? 'Zelfde preview als op de website.'
-                  : 'Bekijk de bewijs-pagina of open in een nieuw tabblad.'}
+                : 'Zelfde preview als op de website.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -237,16 +217,6 @@ export function TeacherProjectsClient({
                   thumbnail_url={active.thumbnail_url}
                   mini_project_token={active.mini_project_token}
                 />
-              ) : active.kind === 'evidence' && active.url ? (
-                <div className="mt-4 space-y-3">
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm" onClick={() => window.open(active.url!, '_blank', 'noopener,noreferrer')}>
-                      Openen / printen
-                    </Button>
-                  </div>
-                  <SmartLinkPreview url={active.url} title={active.title} thumbnailUrl={active.thumbnail_url} />
-                  <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{active.description}</p>
-                </div>
               ) : active.kind === 'file' && active.mini_project_token && active.url ? (
                 <Tabs defaultValue="mini">
                   <TabsList>
