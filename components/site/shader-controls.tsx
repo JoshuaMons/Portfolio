@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Paintbrush } from 'lucide-react';
 
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -34,9 +35,29 @@ function save(state: ShaderState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+function hexToRgbTuple(hex: string) {
+  const h = hex.replace('#', '').trim();
+  if (h.length !== 6) return null;
+  const r = Number.parseInt(h.slice(0, 2), 16);
+  const g = Number.parseInt(h.slice(2, 4), 16);
+  const b = Number.parseInt(h.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+  return `${r}, ${g}, ${b}`;
+}
+
+function toRgba(hex: string, alpha: number) {
+  const rgb = hexToRgbTuple(hex);
+  if (!rgb) return null;
+  const a = Math.min(1, Math.max(0, alpha));
+  return `rgba(${rgb}, ${a})`;
+}
+
 export function ShaderControls() {
   const [open, setOpen] = React.useState(false);
   const [state, setState] = React.useState<ShaderState>(defaults);
+  const supabaseRef = React.useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
+  const userIdRef = React.useRef<string | null>(null);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     const s = load();
@@ -44,11 +65,92 @@ export function ShaderControls() {
     applyShader(s);
   }, []);
 
+  React.useEffect(() => {
+    supabaseRef.current = createSupabaseBrowserClient();
+    if (!supabaseRef.current) return;
+
+    let mounted = true;
+    (async () => {
+      const supabase = supabaseRef.current!;
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id ?? null;
+      userIdRef.current = userId;
+      if (!userId || !mounted) return;
+
+      const { data } = await supabase
+        .from('shader_settings')
+        .select('a,b,c,angle_deg')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      // If the row exists, `ShaderScript` will apply it globally; we also want controls to reflect it.
+      // We derive best-effort hex+alpha from stored rgba strings.
+      if (data && mounted) {
+        const parse = (s: any) => {
+          const m = String(s ?? '')
+            .trim()
+            .match(/^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+)\s*)?\)$/i);
+          if (!m) return null;
+          const r = Math.round(Number(m[1]));
+          const g = Math.round(Number(m[2]));
+          const b = Math.round(Number(m[3]));
+          const a = m[4] == null ? 1 : Number(m[4]);
+          if ([r, g, b, a].some((n) => Number.isNaN(n))) return null;
+          const hex = `#${[r, g, b].map((n) => Math.min(255, Math.max(0, n)).toString(16).padStart(2, '0')).join('')}`;
+          return { hex, alpha: Math.min(1, Math.max(0, a)) };
+        };
+        const ra = parse((data as any).a);
+        const rb = parse((data as any).b);
+        const rc = parse((data as any).c);
+        if (ra && rb && rc) {
+          setState((prev) => ({
+            ...prev,
+            a: ra.hex,
+            b: rb.hex,
+            c: rc.hex,
+            aAlpha: ra.alpha,
+            bAlpha: rb.alpha,
+            cAlpha: rc.alpha,
+            angle: Number((data as any).angle_deg ?? prev.angle),
+          }));
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   function update(next: Partial<ShaderState>) {
     setState((prev) => {
       const merged = { ...prev, ...next };
       applyShader(merged);
       save(merged);
+
+      const supabase = supabaseRef.current;
+      const userId = userIdRef.current;
+      if (supabase && userId) {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+          const a = toRgba(merged.a, merged.aAlpha);
+          const b = toRgba(merged.b, merged.bAlpha);
+          const c = toRgba(merged.c, merged.cAlpha);
+          if (!a || !b || !c) return;
+          supabase
+            .from('shader_settings')
+            .upsert({
+              user_id: userId,
+              a,
+              b,
+              c,
+              angle_deg: Math.round(merged.angle),
+              updated_at: new Date().toISOString(),
+            })
+            .then(() => {});
+        }, 250);
+      }
+
       return merged;
     });
   }
